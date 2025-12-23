@@ -246,34 +246,35 @@ function updateStats() {
   }
 }
 
-// Update chart
+// Update chart - line chart showing future prices
 function updateChart() {
-  const chart = elements.priceChart;
+  const canvas = document.getElementById('chartCanvas');
   const xAxis = elements.chartXAxis;
   const yAxis = elements.chartYAxis;
-  const zeroLine = document.getElementById('chartZeroLine');
-  chart.innerHTML = '';
+
   xAxis.innerHTML = '';
   yAxis.innerHTML = '';
 
   if (pricesData.length === 0) return;
 
   const now = new Date();
-  const currentHour = now.getHours();
-  const today = now.toDateString();
+  now.setMinutes(0, 0, 0);
+
+  // Filter to future prices only (from current hour onwards)
+  const futurePrices = pricesData.filter(p => new Date(p.timestamp) >= now);
+
+  if (futurePrices.length === 0) return;
 
   // Get price range for scaling
-  const allPrices = pricesData.map(p => p.price);
+  const allPrices = futurePrices.map(p => p.price);
   const maxPrice = Math.max(...allPrices, 1);
   const minPrice = Math.min(...allPrices);
   const hasNegative = minPrice < 0;
 
   // Add padding to range
-  const paddedMax = maxPrice + Math.abs(maxPrice) * 0.1;
-  const paddedMin = hasNegative ? minPrice - Math.abs(minPrice) * 0.1 : 0;
+  const paddedMax = maxPrice + Math.abs(maxPrice) * 0.15;
+  const paddedMin = hasNegative ? minPrice - Math.abs(minPrice) * 0.15 : Math.min(0, minPrice - 1);
   const priceRange = paddedMax - paddedMin;
-
-  const chartHeight = 230; // pixels for bars
 
   // Y-axis labels (5 labels)
   const ySteps = 5;
@@ -284,132 +285,160 @@ function updateChart() {
     yAxis.appendChild(span);
   }
 
-  // Show zero line if there are negative prices
-  if (hasNegative) {
-    const zeroPosition = ((paddedMax - 0) / priceRange) * chartHeight;
-    zeroLine.style.display = 'block';
-    zeroLine.style.top = `${zeroPosition + 10}px`; // +10 for padding
-  } else {
-    zeroLine.style.display = 'none';
-  }
+  // X-axis labels - every 2 hours
+  const firstDate = new Date(futurePrices[0].timestamp);
+  const lastDate = new Date(futurePrices[futurePrices.length - 1].timestamp);
 
-  // Chart date header
-  const firstDate = new Date(pricesData[0].timestamp);
-  const lastDate = new Date(pricesData[pricesData.length - 1].timestamp);
   elements.chartDate.textContent = `${firstDate.toLocaleDateString('et-EE', { weekday: 'short', day: 'numeric', month: 'short' })} – ${lastDate.toLocaleDateString('et-EE', { weekday: 'short', day: 'numeric', month: 'short' })}`;
 
-  // Track positions for lines
-  let currentBarIndex = -1;
-  let barPositions = [];
-
-  pricesData.forEach((priceData, index) => {
-    const priceDate = new Date(priceData.timestamp);
+  // Create x-axis labels every 2 hours
+  for (let i = 0; i < futurePrices.length; i += 2) {
+    const priceDate = new Date(futurePrices[i].timestamp);
     const hour = priceDate.getHours();
-    const dateStr = priceDate.toDateString();
-    const isPast = priceDate < now;
-    const isCurrent = dateStr === today && hour === currentHour;
-
-    if (isCurrent) {
-      currentBarIndex = index;
-    }
-
-    // Create bar wrapper
-    const wrapper = document.createElement('div');
-    wrapper.className = 'chart-bar-wrapper';
-    wrapper.dataset.index = index;
-
-    // Create bar
-    const bar = document.createElement('div');
-    bar.className = 'chart-bar';
-    bar.dataset.index = index;
-
-    if (isPast && !isCurrent) {
-      bar.classList.add('past');
-    } else {
-      bar.classList.add('future');
-    }
-
-    // Calculate height and position for negative prices
-    const price = priceData.price;
-    if (price >= 0) {
-      const height = Math.max(2, ((price - paddedMin) / priceRange) * chartHeight);
-      bar.style.height = `${height}px`;
-    } else {
-      bar.classList.add('negative');
-      bar.classList.add('negative-bar');
-      const height = Math.max(2, (Math.abs(price) / priceRange) * chartHeight);
-      bar.style.height = `${height}px`;
-      // Position from zero line
-      const zeroFromBottom = ((0 - paddedMin) / priceRange) * chartHeight;
-      bar.style.position = 'absolute';
-      bar.style.bottom = `${zeroFromBottom - height}px`;
-      bar.style.width = '100%';
-    }
-
-    // Tooltip
-    const tooltip = document.createElement('div');
-    tooltip.className = 'chart-bar-tooltip';
-    const total = getTotalPrice(priceData.price, priceDate);
-    const timeStr = `${hour.toString().padStart(2, '0')}:00`;
-    tooltip.innerHTML = `<strong>${timeStr}</strong><br>Börs: ${priceData.price.toFixed(2)} s/kWh<br>Kokku: ${total.toFixed(2)} s/kWh`;
-    bar.appendChild(tooltip);
-
-    wrapper.appendChild(bar);
-    chart.appendChild(wrapper);
-
-    // X-axis label - show every hour vertically
-    const xLabel = document.createElement('span');
-    xLabel.className = 'chart-x-label';
-    xLabel.textContent = hour.toString().padStart(2, '0');
-    xAxis.appendChild(xLabel);
-  });
-
-  // Wait for DOM to update, then add lines
-  requestAnimationFrame(() => {
-    addChartLines(currentBarIndex);
-  });
-}
-
-// Add current time and best window lines
-function addChartLines(currentBarIndex) {
-  const chart = elements.priceChart;
-
-  // Remove existing lines
-  chart.querySelectorAll('.chart-current-line, .chart-best-line').forEach(el => el.remove());
-
-  const wrappers = chart.querySelectorAll('.chart-bar-wrapper');
-  if (wrappers.length === 0) return;
-
-  const wrapperWidth = wrappers[0].offsetWidth;
-  const gap = 1;
-  const padding = 2;
-
-  // Add red dotted line for current time
-  if (currentBarIndex >= 0 && currentBarIndex < wrappers.length) {
-    const currentLine = document.createElement('div');
-    currentLine.className = 'chart-current-line';
-    const position = (currentBarIndex * (wrapperWidth + gap)) + (wrapperWidth / 2) + padding;
-    currentLine.style.left = `${position}px`;
-    chart.appendChild(currentLine);
+    const span = document.createElement('span');
+    span.className = 'chart-x-label';
+    span.textContent = `${hour.toString().padStart(2, '0')}:00`;
+    xAxis.appendChild(span);
   }
 
-  // Add green line for best window start
+  // Setup canvas
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.scale(dpr, dpr);
+
+  const width = rect.width;
+  const height = rect.height;
+  const padding = { top: 10, right: 10, bottom: 10, left: 10 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+
+  // Find best window
   const best = findBestWindow(selectedDuration);
+  const bestIndices = new Set();
   if (best && best.prices.length > 0) {
-    const bestStartTimestamp = best.prices[0].timestamp;
-    const bestIndex = pricesData.findIndex(p => p.timestamp === bestStartTimestamp);
+    best.prices.forEach(p => {
+      const idx = futurePrices.findIndex(fp => fp.timestamp === p.timestamp);
+      if (idx >= 0) bestIndices.add(idx);
+    });
+  }
 
-    if (bestIndex >= 0) {
-      const bestLine = document.createElement('div');
-      bestLine.className = 'chart-best-line';
-      const position = (bestIndex * (wrapperWidth + gap)) + padding;
-      bestLine.style.left = `${position}px`;
-      chart.appendChild(bestLine);
+  // Clear canvas
+  ctx.clearRect(0, 0, width, height);
+
+  // Draw zero line if negative prices
+  if (hasNegative) {
+    const zeroY = padding.top + ((paddedMax - 0) / priceRange) * chartHeight;
+    ctx.beginPath();
+    ctx.strokeStyle = '#9ca3af';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.moveTo(padding.left, zeroY);
+    ctx.lineTo(width - padding.right, zeroY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Draw grid lines
+  ctx.beginPath();
+  ctx.strokeStyle = '#e5e7eb';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < ySteps; i++) {
+    const y = padding.top + (i / (ySteps - 1)) * chartHeight;
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(width - padding.right, y);
+  }
+  ctx.stroke();
+
+  // Calculate points
+  const points = futurePrices.map((p, i) => {
+    const x = padding.left + (i / (futurePrices.length - 1)) * chartWidth;
+    const y = padding.top + ((paddedMax - p.price) / priceRange) * chartHeight;
+    return { x, y, price: p.price, timestamp: p.timestamp, isBest: bestIndices.has(i) };
+  });
+
+  // Draw best window area (green fill)
+  if (bestIndices.size > 0) {
+    const bestPoints = points.filter(p => p.isBest);
+    if (bestPoints.length > 0) {
+      const firstBestIdx = points.findIndex(p => p.isBest);
+      const lastBestIdx = points.length - 1 - [...points].reverse().findIndex(p => p.isBest);
+
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.2)';
+      ctx.moveTo(points[firstBestIdx].x, height - padding.bottom);
+      for (let i = firstBestIdx; i <= lastBestIdx; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.lineTo(points[lastBestIdx].x, height - padding.bottom);
+      ctx.closePath();
+      ctx.fill();
     }
   }
 
-  // Highlight best window bars
-  updateBestWindow();
+  // Draw main line
+  ctx.beginPath();
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  points.forEach((point, i) => {
+    if (i === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  });
+  ctx.stroke();
+
+  // Draw best window line segment (green)
+  if (bestIndices.size > 0) {
+    ctx.beginPath();
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 3;
+
+    let started = false;
+    points.forEach((point, i) => {
+      if (point.isBest) {
+        if (!started) {
+          ctx.moveTo(point.x, point.y);
+          started = true;
+        } else {
+          ctx.lineTo(point.x, point.y);
+        }
+      }
+    });
+    ctx.stroke();
+  }
+
+  // Draw current time line (red dotted)
+  const currentX = padding.left;
+  ctx.beginPath();
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 5]);
+  ctx.moveTo(currentX, padding.top);
+  ctx.lineTo(currentX, height - padding.bottom);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw dots on line
+  points.forEach((point, i) => {
+    ctx.beginPath();
+    ctx.fillStyle = point.isBest ? '#22c55e' : '#3b82f6';
+    ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Store points for tooltip (optional future use)
+  canvas.chartPoints = points;
+  canvas.futurePrices = futurePrices;
 }
 
 // Find best consecutive window
@@ -451,11 +480,6 @@ function findBestWindow(duration) {
 function updateBestWindow() {
   const best = findBestWindow(selectedDuration);
 
-  // Clear previous highlighting
-  document.querySelectorAll('.chart-bar.best').forEach(bar => {
-    bar.classList.remove('best');
-  });
-
   if (best && best.prices.length > 0) {
     const startTime = new Date(best.prices[0].timestamp);
     const endTime = new Date(best.prices[best.prices.length - 1].timestamp);
@@ -465,13 +489,6 @@ function updateBestWindow() {
 
     elements.bestWindowTime.textContent = timeStr;
     elements.bestWindowPrice.textContent = `${best.avgPrice.toFixed(2)} s/kWh`;
-
-    // Highlight best bars
-    best.prices.forEach(p => {
-      const index = pricesData.findIndex(pd => pd.timestamp === p.timestamp);
-      const bar = document.querySelector(`.chart-bar[data-index="${index}"]`);
-      if (bar) bar.classList.add('best');
-    });
 
     updateCountdown();
   } else {

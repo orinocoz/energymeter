@@ -212,124 +212,30 @@ section {
 }
 
 .chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 1px;
-  height: 250px;
-  padding: 10px 2px 0 2px;
   position: relative;
+  height: 250px;
+  padding: 10px 0 0 0;
+}
+
+.chart-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .chart-x-axis {
   display: flex;
-  gap: 1px;
-  font-size: 0.5rem;
+  justify-content: space-between;
+  font-size: 0.7rem;
   color: var(--gray-500);
-  padding: 2px 2px 0 2px;
+  padding: 8px 0 0 0;
   font-weight: 500;
 }
 
 .chart-x-label {
-  flex: 1;
-  min-width: 0;
   text-align: center;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  white-space: nowrap;
-  line-height: 1;
-  height: 18px;
 }
 
-.chart-bar-wrapper {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-}
-
-.chart-bar {
-  width: 100%;
-  border-radius: 1px 1px 0 0;
-  cursor: pointer;
-  transition: opacity 0.15s;
-  position: relative;
-  min-height: 2px;
-}
-
-.chart-bar.negative-bar {
-  border-radius: 0 0 1px 1px;
-  align-self: flex-start;
-}
-
-.chart-bar:hover {
-  opacity: 0.75;
-}
-
-.chart-bar.past {
-  background: var(--gray-300);
-}
-
-.chart-bar.future {
-  background: var(--primary);
-}
-
-.chart-bar.best {
-  background: var(--success) !important;
-}
-
-.chart-bar.negative {
-  background: #4ade80;
-}
-
-/* Current time indicator - red dotted line */
-.chart-current-line {
-  position: absolute;
-  top: -10px;
-  bottom: -24px;
-  width: 2px;
-  background: repeating-linear-gradient(
-    to bottom,
-    var(--danger) 0px,
-    var(--danger) 4px,
-    transparent 4px,
-    transparent 8px
-  );
-  z-index: 10;
-}
-
-/* Best time indicator - green solid line */
-.chart-best-line {
-  position: absolute;
-  top: -10px;
-  bottom: -24px;
-  width: 3px;
-  background: var(--success);
-  z-index: 9;
-  border-radius: 1px;
-}
-
-.chart-bar-tooltip {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--gray-800);
-  color: white;
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s;
-  z-index: 20;
-}
-
-.chart-bar:hover .chart-bar-tooltip {
-  opacity: 1;
-}
 
 .chart-legend {
   display: flex;
@@ -353,34 +259,30 @@ section {
   border-radius: 2px;
 }
 
-.legend-color.past {
-  background: var(--gray-300);
-}
-
 .legend-color.future {
   background: var(--primary);
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
 }
 
 .legend-color.best {
   background: var(--success);
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
 }
 
 .legend-color.current-line {
   background: repeating-linear-gradient(
-    to bottom,
+    to right,
     var(--danger) 0px,
     var(--danger) 3px,
     transparent 3px,
     transparent 6px
   );
-  width: 3px;
-  height: 14px;
-}
-
-.legend-color.best-line {
-  background: var(--success);
-  width: 3px;
-  height: 14px;
+  width: 20px;
+  height: 2px;
 }
 
 /* Info Cards */
