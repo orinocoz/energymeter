@@ -301,12 +301,17 @@ function updateChart() {
 
   elements.chartDate.textContent = `${firstDate.toLocaleDateString('et-EE', { weekday: 'short', day: 'numeric', month: 'short' })} – ${lastDate.toLocaleDateString('et-EE', { weekday: 'short', day: 'numeric', month: 'short' })}`;
 
-  // Create x-axis labels every 2 hours (only even hours)
+  // Create x-axis labels every 2 hours (only even hours, no duplicates)
+  const shownHours = new Set();
   for (let i = 0; i < futurePrices.length; i++) {
     const priceDate = new Date(futurePrices[i].timestamp);
     const hour = priceDate.getHours();
-    // Show label only for even hours
-    if (hour % 2 === 0) {
+    const day = priceDate.getDate();
+    const key = `${day}-${hour}`;
+
+    // Show label only for even hours and not already shown
+    if (hour % 2 === 0 && !shownHours.has(key)) {
+      shownHours.add(key);
       const span = document.createElement('span');
       span.className = 'chart-x-label';
       span.textContent = hour.toString().padStart(2, '0');
