@@ -357,16 +357,10 @@ function updateChart() {
     wrapper.appendChild(bar);
     chart.appendChild(wrapper);
 
-    // X-axis label
+    // X-axis label - show every hour vertically
     const xLabel = document.createElement('span');
     xLabel.className = 'chart-x-label';
-    // Show label at midnight and every 6 hours
-    if (hour === 0) {
-      xLabel.textContent = priceDate.toLocaleDateString('et-EE', { day: 'numeric', month: 'short' });
-      xLabel.style.fontWeight = '600';
-    } else if (hour % 6 === 0) {
-      xLabel.textContent = hour;
-    }
+    xLabel.textContent = hour.toString().padStart(2, '0');
     xAxis.appendChild(xLabel);
   });
 
@@ -387,8 +381,8 @@ function addChartLines(currentBarIndex) {
   if (wrappers.length === 0) return;
 
   const wrapperWidth = wrappers[0].offsetWidth;
-  const gap = 2;
-  const padding = 5;
+  const gap = 1;
+  const padding = 2;
 
   // Add red dotted line for current time
   if (currentBarIndex >= 0 && currentBarIndex < wrappers.length) {

@@ -199,7 +199,7 @@ section {
   position: relative;
   border-left: 1px solid var(--gray-300);
   border-bottom: 1px solid var(--gray-300);
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .chart-zero-line {
@@ -214,33 +214,35 @@ section {
 .chart {
   display: flex;
   align-items: flex-end;
-  gap: 2px;
+  gap: 1px;
   height: 250px;
-  padding: 10px 5px 0 5px;
+  padding: 10px 2px 0 2px;
   position: relative;
-  min-width: max-content;
 }
 
 .chart-x-axis {
   display: flex;
-  gap: 2px;
-  font-size: 0.6rem;
+  gap: 1px;
+  font-size: 0.5rem;
   color: var(--gray-500);
-  padding: 6px 5px 0 5px;
+  padding: 2px 2px 0 2px;
   font-weight: 500;
-  min-width: max-content;
 }
 
 .chart-x-label {
-  width: 12px;
-  min-width: 12px;
+  flex: 1;
+  min-width: 0;
   text-align: center;
-  overflow: hidden;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  line-height: 1;
+  height: 18px;
 }
 
 .chart-bar-wrapper {
-  width: 12px;
-  min-width: 12px;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
