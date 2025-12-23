@@ -226,14 +226,18 @@ section {
 .chart-x-axis {
   display: flex;
   justify-content: space-between;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   color: var(--gray-500);
-  padding: 8px 0 0 0;
+  padding: 4px 10px 0 10px;
   font-weight: 500;
 }
 
 .chart-x-label {
-  text-align: center;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-align: left;
+  height: 32px;
+  line-height: 1;
 }
 
 
