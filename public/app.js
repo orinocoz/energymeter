@@ -387,7 +387,7 @@ function addChartLines(currentBarIndex) {
   if (wrappers.length === 0) return;
 
   const wrapperWidth = wrappers[0].offsetWidth;
-  const gap = 1;
+  const gap = 2;
   const padding = 5;
 
   // Add red dotted line for current time
