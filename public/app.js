@@ -291,14 +291,17 @@ function updateChart() {
 
   elements.chartDate.textContent = `${firstDate.toLocaleDateString('et-EE', { weekday: 'short', day: 'numeric', month: 'short' })} – ${lastDate.toLocaleDateString('et-EE', { weekday: 'short', day: 'numeric', month: 'short' })}`;
 
-  // Create x-axis labels every 2 hours
-  for (let i = 0; i < futurePrices.length; i += 2) {
+  // Create x-axis labels every 2 hours (only even hours)
+  for (let i = 0; i < futurePrices.length; i++) {
     const priceDate = new Date(futurePrices[i].timestamp);
     const hour = priceDate.getHours();
-    const span = document.createElement('span');
-    span.className = 'chart-x-label';
-    span.textContent = `${hour.toString().padStart(2, '0')}:00`;
-    xAxis.appendChild(span);
+    // Show label only for even hours
+    if (hour % 2 === 0) {
+      const span = document.createElement('span');
+      span.className = 'chart-x-label';
+      span.textContent = hour.toString().padStart(2, '0');
+      xAxis.appendChild(span);
+    }
   }
 
   // Setup canvas
