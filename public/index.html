@@ -1,127 +1,133 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="et">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Electricity Price Calculator - Estonia</title>
+  <title>Elektri börsihind täna ja homme</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Electricity Price Calculator</h1>
-      <p class="subtitle">Estonian Nord Pool spot prices</p>
+      <h1>Elektri börsihind</h1>
+      <p class="subtitle">Nord Pool börsihinnad Eestis</p>
     </header>
 
     <main>
       <!-- Current Price Display -->
       <section class="current-price-section">
-        <div class="current-price-card">
-          <div class="price-label">Current Price</div>
-          <div class="price-value">
-            <span id="currentPrice">--</span>
-            <span class="price-unit">cents/kWh</span>
-          </div>
-          <div class="price-total" id="currentPriceTotal">Total with fees: -- cents/kWh</div>
+        <div class="price-label">Hetke hind</div>
+        <div class="price-display">
+          <span class="price-value" id="currentPrice">--</span>
+          <span class="price-unit">s/kWh</span>
         </div>
-        <div class="stats-row">
-          <div class="stat">
-            <span class="stat-label">Today's Average</span>
-            <span class="stat-value" id="avgPrice">--</span>
-          </div>
-          <div class="stat">
-            <span class="stat-label">Today's Min</span>
-            <span class="stat-value" id="minPrice">--</span>
-          </div>
-          <div class="stat">
-            <span class="stat-label">Today's Max</span>
-            <span class="stat-value" id="maxPrice">--</span>
-          </div>
+        <div class="price-total" id="currentPriceTotal">Koos tasudega: -- s/kWh</div>
+      </section>
+
+      <!-- Duration Selector -->
+      <section class="duration-section">
+        <div class="duration-label">Vali mitu tundi järjest soovid elektrit tarbida:</div>
+        <div class="duration-buttons" id="durationButtons">
+          <button class="duration-btn active" data-hours="1">1h</button>
+          <button class="duration-btn" data-hours="2">2h</button>
+          <button class="duration-btn" data-hours="3">3h</button>
+          <button class="duration-btn" data-hours="4">4h</button>
+          <button class="duration-btn" data-hours="5">5h</button>
+          <button class="duration-btn" data-hours="6">6h</button>
+          <button class="duration-btn" data-hours="7">7h</button>
+          <button class="duration-btn" data-hours="8">8h</button>
         </div>
       </section>
 
       <!-- Price Chart -->
       <section class="chart-section">
-        <h2>Hourly Prices</h2>
+        <div class="chart-header">
+          <span class="chart-date" id="chartDate">--</span>
+        </div>
         <div class="chart-container">
-          <div class="chart" id="priceChart"></div>
-          <div class="chart-legend">
-            <span class="legend-item past"><span class="legend-color"></span> Past</span>
-            <span class="legend-item current"><span class="legend-color"></span> Current</span>
-            <span class="legend-item future"><span class="legend-color"></span> Future</span>
-            <span class="legend-item best"><span class="legend-color"></span> Best Window</span>
+          <div class="chart-y-axis" id="chartYAxis"></div>
+          <div class="chart-area">
+            <div class="chart" id="priceChart"></div>
+            <div class="chart-x-axis" id="chartXAxis"></div>
           </div>
+        </div>
+        <div class="chart-legend">
+          <span class="legend-item"><span class="legend-color past"></span> Minevik</span>
+          <span class="legend-item"><span class="legend-color future"></span> Tulevik</span>
+          <span class="legend-item"><span class="legend-color best"></span> Soodsaim aeg</span>
+          <span class="legend-item"><span class="legend-color current-line"></span> Praegu</span>
         </div>
       </section>
 
-      <!-- Duration Selector -->
-      <section class="duration-section">
-        <h2>Find Cheapest Window</h2>
-        <div class="duration-control">
-          <label for="durationSlider">Consecutive hours needed:</label>
-          <div class="slider-container">
-            <input type="range" id="durationSlider" min="1" max="8" value="1">
-            <span class="duration-value" id="durationValue">1 hour</span>
+      <!-- Best Time Info -->
+      <section class="best-time-section">
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-label">Soodsaim aeg</div>
+            <div class="info-value" id="bestWindowTime">--</div>
+          </div>
+          <div class="info-card">
+            <div class="info-label">Soodsaim hind</div>
+            <div class="info-value" id="bestWindowPrice">-- s/kWh</div>
+          </div>
+          <div class="info-card">
+            <div class="info-label">Keskmine hind</div>
+            <div class="info-value" id="avgPrice">-- s/kWh</div>
+          </div>
+          <div class="info-card">
+            <div class="info-label">Kõrgeim hind</div>
+            <div class="info-value" id="maxPrice">-- s/kWh</div>
           </div>
         </div>
-        <div class="best-window-result" id="bestWindowResult">
-          <div class="best-window-info">
-            <span class="best-label">Cheapest window:</span>
-            <span class="best-time" id="bestWindowTime">--</span>
-          </div>
-          <div class="best-window-countdown" id="bestWindowCountdown"></div>
-          <div class="best-window-price">
-            <span>Average price: </span>
-            <span id="bestWindowPrice">--</span>
-            <span> cents/kWh</span>
-          </div>
+        <div class="countdown-box" id="countdownBox">
+          <span id="countdownText">--</span>
         </div>
       </section>
 
       <!-- Cost Calculator -->
       <section class="calculator-section">
-        <h2>Cost Calculator</h2>
-        <div class="calculator-input">
-          <label for="kwhInput">Energy consumption:</label>
-          <div class="input-group">
-            <input type="number" id="kwhInput" min="0.1" step="0.1" value="1" placeholder="1.0">
-            <span class="input-unit">kWh</span>
+        <h2>Kulukalkulaator</h2>
+        <div class="calculator-row">
+          <div class="calculator-input">
+            <label for="kwhInput">Energiatarbimine:</label>
+            <div class="input-group">
+              <input type="number" id="kwhInput" min="0.1" step="0.1" value="1" placeholder="1.0">
+              <span class="input-unit">kWh</span>
+            </div>
           </div>
-        </div>
-        <div class="cost-comparison" id="costComparison">
-          <div class="cost-card now">
-            <div class="cost-label">Cost Now</div>
-            <div class="cost-value" id="costNow">--</div>
+          <div class="calculator-results">
+            <div class="calc-result">
+              <span class="calc-label">Kulu praegu:</span>
+              <span class="calc-value" id="costNow">--</span>
+            </div>
+            <div class="calc-result optimal">
+              <span class="calc-label">Kulu soodsaimal ajal:</span>
+              <span class="calc-value" id="costOptimal">--</span>
+            </div>
+            <div class="calc-savings" id="savings"></div>
           </div>
-          <div class="cost-card optimal">
-            <div class="cost-label">Cost at Optimal Time</div>
-            <div class="cost-value" id="costOptimal">--</div>
-          </div>
-          <div class="savings" id="savings"></div>
         </div>
       </section>
 
       <!-- Settings -->
       <section class="settings-section">
         <details>
-          <summary><h2>Fee Settings</h2></summary>
+          <summary>Tasude seaded</summary>
           <div class="settings-content">
-            <p class="settings-note">Fees are added to spot price. Settings are saved in your browser.</p>
-            <div class="settings-grid" id="settingsGrid">
-              <!-- Populated by JavaScript -->
-            </div>
+            <p class="settings-note">Tasud lisatakse börsihinnale. Seaded salvestatakse sinu brauseris.</p>
+            <div class="settings-grid" id="settingsGrid"></div>
             <div class="settings-actions">
-              <button id="resetSettings" class="btn-secondary">Reset to Defaults</button>
+              <button id="resetSettings" class="btn-secondary">Taasta vaikeväärtused</button>
             </div>
           </div>
         </details>
       </section>
 
-      <!-- Data Info -->
+      <!-- Footer -->
       <footer class="data-info">
-        <p>Data source: <a href="https://dashboard.elering.ee" target="_blank" rel="noopener">Elering</a> (Nord Pool)</p>
-        <p>Last updated: <span id="lastUpdated">--</span></p>
-        <p class="disclaimer">Tomorrow's prices are usually available after 13:00 CET.</p>
+        <p>Andmete allikas: <a href="https://dashboard.elering.ee" target="_blank" rel="noopener">Elering</a> (Nord Pool)</p>
+        <p>Viimati uuendatud: <span id="lastUpdated">--</span></p>
+        <p class="disclaimer">Homse hinnad on tavaliselt saadaval pärast kella 13:00.</p>
       </footer>
     </main>
   </div>
