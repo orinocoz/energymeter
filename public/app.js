@@ -273,19 +273,27 @@ function updateChart() {
   const minPrice = Math.min(...allPrices);
   const hasNegative = minPrice < 0;
 
-  // Add padding to range
-  const paddedMax = maxPrice + Math.abs(maxPrice) * 0.15;
-  const paddedMin = hasNegative ? minPrice - Math.abs(minPrice) * 0.15 : Math.min(0, minPrice - 1);
+  // Round to nice 2-step intervals
+  const stepSize = 2;
+  const roundedMin = Math.floor(minPrice / stepSize) * stepSize;
+  const roundedMax = Math.ceil(maxPrice / stepSize) * stepSize;
+
+  // Add one step padding
+  const paddedMin = roundedMin - stepSize;
+  const paddedMax = roundedMax + stepSize;
   const priceRange = paddedMax - paddedMin;
 
-  // Y-axis labels (5 labels)
-  const ySteps = 5;
-  for (let i = 0; i < ySteps; i++) {
-    const value = paddedMax - (priceRange / (ySteps - 1)) * i;
-    const span = document.createElement('span');
-    span.textContent = value.toFixed(1);
-    yAxis.appendChild(span);
+  // Y-axis labels (every 2 units)
+  const yLabels = [];
+  for (let v = paddedMax; v >= paddedMin; v -= stepSize) {
+    yLabels.push(v);
   }
+
+  yLabels.forEach(value => {
+    const span = document.createElement('span');
+    span.textContent = value;
+    yAxis.appendChild(span);
+  });
 
   // X-axis labels - every 2 hours
   const firstDate = new Date(futurePrices[0].timestamp);
@@ -349,15 +357,15 @@ function updateChart() {
     ctx.setLineDash([]);
   }
 
-  // Draw grid lines
+  // Draw grid lines for each Y label
   ctx.beginPath();
   ctx.strokeStyle = '#e5e7eb';
   ctx.lineWidth = 1;
-  for (let i = 0; i < ySteps; i++) {
-    const y = padding.top + (i / (ySteps - 1)) * chartHeight;
+  yLabels.forEach((value, i) => {
+    const y = padding.top + (i / (yLabels.length - 1)) * chartHeight;
     ctx.moveTo(padding.left, y);
     ctx.lineTo(width - padding.right, y);
-  }
+  });
   ctx.stroke();
 
   // Calculate points
