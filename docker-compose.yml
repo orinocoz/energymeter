@@ -1,0 +1,9 @@
+services:
+  electricity-calculator:
+    build: .
+    container_name: electricity-price-calculator
+    ports:
+      - "8080:3000"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production

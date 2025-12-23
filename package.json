@@ -1,0 +1,15 @@
+{
+  "name": "electricity-price-calculator",
+  "version": "1.0.0",
+  "description": "Estonian electricity spot price calculator with cost estimation",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "keywords": ["electricity", "nord-pool", "estonia", "price-calculator"],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

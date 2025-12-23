@@ -1,0 +1,27 @@
+{
+  "fees": {
+    "transferDay": 3.95,
+    "transferNight": 2.30,
+    "renewableSurcharge": 0.84,
+    "exciseTax": 0.21,
+    "vatPercent": 24
+  },
+  "dayHours": {
+    "start": 7,
+    "end": 23
+  },
+  "labels": {
+    "transferDay": "Day transfer fee (07:00-23:00)",
+    "transferNight": "Night transfer fee (23:00-07:00)",
+    "renewableSurcharge": "Renewable energy surcharge",
+    "exciseTax": "Electricity excise tax",
+    "vatPercent": "VAT"
+  },
+  "units": {
+    "transferDay": "cents/kWh",
+    "transferNight": "cents/kWh",
+    "renewableSurcharge": "cents/kWh",
+    "exciseTax": "cents/kWh",
+    "vatPercent": "%"
+  }
+}

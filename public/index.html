@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Electricity Price Calculator - Estonia</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Electricity Price Calculator</h1>
+      <p class="subtitle">Estonian Nord Pool spot prices</p>
+    </header>
+
+    <main>
+      <!-- Current Price Display -->
+      <section class="current-price-section">
+        <div class="current-price-card">
+          <div class="price-label">Current Price</div>
+          <div class="price-value">
+            <span id="currentPrice">--</span>
+            <span class="price-unit">cents/kWh</span>
+          </div>
+          <div class="price-total" id="currentPriceTotal">Total with fees: -- cents/kWh</div>
+        </div>
+        <div class="stats-row">
+          <div class="stat">
+            <span class="stat-label">Today's Average</span>
+            <span class="stat-value" id="avgPrice">--</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Today's Min</span>
+            <span class="stat-value" id="minPrice">--</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Today's Max</span>
+            <span class="stat-value" id="maxPrice">--</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Price Chart -->
+      <section class="chart-section">
+        <h2>Hourly Prices</h2>
+        <div class="chart-container">
+          <div class="chart" id="priceChart"></div>
+          <div class="chart-legend">
+            <span class="legend-item past"><span class="legend-color"></span> Past</span>
+            <span class="legend-item current"><span class="legend-color"></span> Current</span>
+            <span class="legend-item future"><span class="legend-color"></span> Future</span>
+            <span class="legend-item best"><span class="legend-color"></span> Best Window</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Duration Selector -->
+      <section class="duration-section">
+        <h2>Find Cheapest Window</h2>
+        <div class="duration-control">
+          <label for="durationSlider">Consecutive hours needed:</label>
+          <div class="slider-container">
+            <input type="range" id="durationSlider" min="1" max="8" value="1">
+            <span class="duration-value" id="durationValue">1 hour</span>
+          </div>
+        </div>
+        <div class="best-window-result" id="bestWindowResult">
+          <div class="best-window-info">
+            <span class="best-label">Cheapest window:</span>
+            <span class="best-time" id="bestWindowTime">--</span>
+          </div>
+          <div class="best-window-countdown" id="bestWindowCountdown"></div>
+          <div class="best-window-price">
+            <span>Average price: </span>
+            <span id="bestWindowPrice">--</span>
+            <span> cents/kWh</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cost Calculator -->
+      <section class="calculator-section">
+        <h2>Cost Calculator</h2>
+        <div class="calculator-input">
+          <label for="kwhInput">Energy consumption:</label>
+          <div class="input-group">
+            <input type="number" id="kwhInput" min="0.1" step="0.1" value="1" placeholder="1.0">
+            <span class="input-unit">kWh</span>
+          </div>
+        </div>
+        <div class="cost-comparison" id="costComparison">
+          <div class="cost-card now">
+            <div class="cost-label">Cost Now</div>
+            <div class="cost-value" id="costNow">--</div>
+          </div>
+          <div class="cost-card optimal">
+            <div class="cost-label">Cost at Optimal Time</div>
+            <div class="cost-value" id="costOptimal">--</div>
+          </div>
+          <div class="savings" id="savings"></div>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section class="settings-section">
+        <details>
+          <summary><h2>Fee Settings</h2></summary>
+          <div class="settings-content">
+            <p class="settings-note">Fees are added to spot price. Settings are saved in your browser.</p>
+            <div class="settings-grid" id="settingsGrid">
+              <!-- Populated by JavaScript -->
+            </div>
+            <div class="settings-actions">
+              <button id="resetSettings" class="btn-secondary">Reset to Defaults</button>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- Data Info -->
+      <footer class="data-info">
+        <p>Data source: <a href="https://dashboard.elering.ee" target="_blank" rel="noopener">Elering</a> (Nord Pool)</p>
+        <p>Last updated: <span id="lastUpdated">--</span></p>
+        <p class="disclaimer">Tomorrow's prices are usually available after 13:00 CET.</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
