@@ -365,22 +365,29 @@ function updateChart() {
     return { x, y, price: p.price, timestamp: p.timestamp, isBest: bestIndices.has(i) };
   });
 
-  // Draw best window area (green fill)
+  // Draw best window as green vertical bar/column spanning full height
   if (bestIndices.size > 0) {
-    const bestPoints = points.filter(p => p.isBest);
-    if (bestPoints.length > 0) {
-      const firstBestIdx = points.findIndex(p => p.isBest);
-      const lastBestIdx = points.length - 1 - [...points].reverse().findIndex(p => p.isBest);
+    const firstBestIdx = points.findIndex(p => p.isBest);
+    const lastBestIdx = points.length - 1 - [...points].reverse().findIndex(p => p.isBest);
+
+    if (firstBestIdx >= 0 && lastBestIdx >= 0) {
+      const barX = points[firstBestIdx].x;
+      const barWidth = points[lastBestIdx].x - points[firstBestIdx].x + (chartWidth / (futurePrices.length - 1));
 
       ctx.beginPath();
-      ctx.fillStyle = 'rgba(34, 197, 94, 0.2)';
-      ctx.moveTo(points[firstBestIdx].x, height - padding.bottom);
-      for (let i = firstBestIdx; i <= lastBestIdx; i++) {
-        ctx.lineTo(points[i].x, points[i].y);
-      }
-      ctx.lineTo(points[lastBestIdx].x, height - padding.bottom);
-      ctx.closePath();
-      ctx.fill();
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.25)';
+      ctx.fillRect(barX - 2, padding.top, barWidth, chartHeight);
+
+      // Draw left and right borders of the green zone
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.moveTo(barX, padding.top);
+      ctx.lineTo(barX, height - padding.bottom);
+      ctx.moveTo(barX + barWidth - 4, padding.top);
+      ctx.lineTo(barX + barWidth - 4, height - padding.bottom);
+      ctx.stroke();
     }
   }
 
