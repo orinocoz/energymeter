@@ -41,6 +41,8 @@ async function init() {
       document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
       e.target.classList.add('active');
       selectedDuration = parseInt(e.target.dataset.hours);
+      // Redraw chart with new duration selection
+      updateChart();
       updateBestWindow();
       updateCostCalculator();
     }
