@@ -495,17 +495,18 @@ function updateChart() {
       if (existingTooltip) existingTooltip.remove();
 
       if (closestPoint) {
-        const priceData = canvas.futurePrices[closestPoint.index];
-        const priceDate = new Date(priceData.timestamp);
+        const priceDate = new Date(closestPoint.timestamp);
         const hour = priceDate.getHours();
-        const total = getTotalPrice(priceData.price, priceDate);
+        const minutes = priceDate.getMinutes();
+        const price = closestPoint.price;
+        const total = getTotalPrice(price, priceDate);
 
         const tooltip = document.createElement('div');
         tooltip.id = 'chartTooltip';
         tooltip.className = 'chart-tooltip';
         tooltip.innerHTML = `
-          <strong>${hour.toString().padStart(2, '0')}:00</strong><br>
-          Börs: ${priceData.price.toFixed(2)} s/kWh<br>
+          <strong>${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}</strong><br>
+          Börs: ${price.toFixed(2)} s/kWh<br>
           Kokku: ${total.toFixed(2)} s/kWh
         `;
 
