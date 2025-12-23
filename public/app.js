@@ -448,9 +448,71 @@ function updateChart() {
     ctx.fill();
   });
 
-  // Store points for tooltip (optional future use)
+  // Store points for tooltip
   canvas.chartPoints = points;
   canvas.futurePrices = futurePrices;
+  canvas.chartDimensions = { width, height, padding, dpr };
+
+  // Add click/touch handler for tooltip
+  if (!canvas.hasTooltipHandler) {
+    canvas.hasTooltipHandler = true;
+
+    const showTooltip = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
+      const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
+
+      const points = canvas.chartPoints;
+      if (!points || points.length === 0) return;
+
+      // Find closest point
+      let closestPoint = null;
+      let closestDist = Infinity;
+
+      points.forEach((point, i) => {
+        const dist = Math.sqrt(Math.pow(point.x - x, 2) + Math.pow(point.y - y, 2));
+        if (dist < closestDist && dist < 30) {
+          closestDist = dist;
+          closestPoint = { ...point, index: i };
+        }
+      });
+
+      // Remove existing tooltip
+      const existingTooltip = document.getElementById('chartTooltip');
+      if (existingTooltip) existingTooltip.remove();
+
+      if (closestPoint) {
+        const priceData = canvas.futurePrices[closestPoint.index];
+        const priceDate = new Date(priceData.timestamp);
+        const hour = priceDate.getHours();
+        const total = getTotalPrice(priceData.price, priceDate);
+
+        const tooltip = document.createElement('div');
+        tooltip.id = 'chartTooltip';
+        tooltip.className = 'chart-tooltip';
+        tooltip.innerHTML = `
+          <strong>${hour.toString().padStart(2, '0')}:00</strong><br>
+          Börs: ${priceData.price.toFixed(2)} s/kWh<br>
+          Kokku: ${total.toFixed(2)} s/kWh
+        `;
+
+        // Position tooltip
+        const chartRect = canvas.parentElement.getBoundingClientRect();
+        tooltip.style.left = `${closestPoint.x}px`;
+        tooltip.style.top = `${closestPoint.y - 10}px`;
+
+        canvas.parentElement.appendChild(tooltip);
+
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+          tooltip.remove();
+        }, 3000);
+      }
+    };
+
+    canvas.addEventListener('click', showTooltip);
+    canvas.addEventListener('touchstart', showTooltip);
+  }
 }
 
 // Find best consecutive window
