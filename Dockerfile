@@ -9,8 +9,8 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 # Copy application files
-COPY server ./server
-COPY public ./public
+COPY --chown=node:node server ./server
+COPY --chown=node:node public ./public
 
 # Expose port
 EXPOSE 3000
