@@ -248,9 +248,9 @@ section {
   border-radius: 6px;
   font-size: 0.75rem;
   white-space: nowrap;
-  z-index: 100;
+  z-index: 1000;
   transform: translate(-50%, -100%);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   pointer-events: none;
 }
 
@@ -262,6 +262,17 @@ section {
   transform: translateX(-50%);
   border: 6px solid transparent;
   border-top-color: var(--gray-800);
+}
+
+.chart-tooltip.tooltip-below {
+  transform: translate(-50%, 0);
+}
+
+.chart-tooltip.tooltip-below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--gray-800);
 }
 
 

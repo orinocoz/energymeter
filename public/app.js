@@ -509,12 +509,31 @@ function updateChart() {
           Kokku: ${total.toFixed(2)} s/kWh
         `;
 
-        // Position tooltip
-        const chartRect = canvas.parentElement.getBoundingClientRect();
-        tooltip.style.left = `${closestPoint.x}px`;
-        tooltip.style.top = `${closestPoint.y - 10}px`;
+        // Position tooltip - keep within bounds
+        const chartContainer = canvas.parentElement;
+        const containerWidth = chartContainer.offsetWidth;
 
-        canvas.parentElement.appendChild(tooltip);
+        let leftPos = closestPoint.x;
+        let topPos = closestPoint.y - 10;
+
+        // Adjust if too close to left edge
+        if (leftPos < 60) {
+          leftPos = 60;
+        }
+        // Adjust if too close to right edge
+        if (leftPos > containerWidth - 60) {
+          leftPos = containerWidth - 60;
+        }
+        // Adjust if too close to top
+        if (topPos < 60) {
+          topPos = closestPoint.y + 40;
+          tooltip.classList.add('tooltip-below');
+        }
+
+        tooltip.style.left = `${leftPos}px`;
+        tooltip.style.top = `${topPos}px`;
+
+        chartContainer.appendChild(tooltip);
 
         // Auto-hide after 3 seconds
         setTimeout(() => {
