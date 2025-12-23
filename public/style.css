@@ -145,8 +145,8 @@ section {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding: 0 50px 0 60px;
+  margin-bottom: 12px;
+  padding: 0 10px 0 50px;
 }
 
 .chart-date {
@@ -174,11 +174,11 @@ section {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 0 8px 30px 0;
-  font-size: 0.75rem;
+  padding: 0 6px 24px 0;
+  font-size: 0.65rem;
   color: var(--gray-500);
   text-align: right;
-  min-width: 50px;
+  min-width: 40px;
   font-weight: 500;
 }
 
@@ -213,30 +213,32 @@ section {
 .chart {
   display: flex;
   align-items: flex-end;
-  gap: 3px;
-  height: 300px;
-  padding: 10px 10px 0 10px;
+  gap: 1px;
+  height: 250px;
+  padding: 10px 5px 0 5px;
   position: relative;
 }
 
 .chart-x-axis {
   display: flex;
-  gap: 3px;
-  font-size: 0.7rem;
+  gap: 1px;
+  font-size: 0.6rem;
   color: var(--gray-500);
-  padding: 8px 10px 0 10px;
+  padding: 6px 5px 0 5px;
   font-weight: 500;
 }
 
 .chart-x-label {
   flex: 1;
-  min-width: 16px;
+  min-width: 0;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chart-bar-wrapper {
   flex: 1;
-  min-width: 16px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -245,7 +247,7 @@ section {
 
 .chart-bar {
   width: 100%;
-  border-radius: 2px 2px 0 0;
+  border-radius: 1px 1px 0 0;
   cursor: pointer;
   transition: opacity 0.15s;
   position: relative;
@@ -253,7 +255,7 @@ section {
 }
 
 .chart-bar.negative-bar {
-  border-radius: 0 0 2px 2px;
+  border-radius: 0 0 1px 1px;
   align-self: flex-start;
 }
 
@@ -638,9 +640,9 @@ section {
 }
 
 /* Mobile */
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .container {
-    padding: 12px;
+    padding: 10px;
   }
 
   .price-value {
@@ -648,10 +650,67 @@ section {
   }
 
   .duration-btn {
-    padding: 6px 12px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
   }
 
-  .chart-bar {
-    min-width: 10px;
+  .chart-section {
+    padding: 12px;
+  }
+
+  .chart-header {
+    padding: 0 5px 0 35px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .chart-date {
+    font-size: 0.75rem;
+  }
+
+  .chart {
+    height: 200px;
+    padding: 8px 3px 0 3px;
+  }
+
+  .chart-y-axis {
+    min-width: 30px;
+    font-size: 0.55rem;
+    padding: 0 4px 20px 0;
+  }
+
+  .chart-x-axis {
+    font-size: 0.5rem;
+    padding: 4px 3px 0 3px;
+  }
+
+  .info-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .info-card {
+    padding: 10px 6px;
+  }
+
+  .info-label {
+    font-size: 0.65rem;
+  }
+
+  .info-value {
+    font-size: 0.875rem;
+  }
+
+  .calculator-row {
+    flex-direction: column;
+  }
+
+  .chart-legend {
+    gap: 10px;
+    font-size: 0.65rem;
+  }
+
+  .legend-item {
+    font-size: 0.65rem;
   }
 }

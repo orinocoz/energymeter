@@ -273,7 +273,7 @@ function updateChart() {
   const paddedMin = hasNegative ? minPrice - Math.abs(minPrice) * 0.1 : 0;
   const priceRange = paddedMax - paddedMin;
 
-  const chartHeight = 280; // pixels for bars
+  const chartHeight = 230; // pixels for bars
 
   // Y-axis labels (5 labels)
   const ySteps = 5;
@@ -387,13 +387,14 @@ function addChartLines(currentBarIndex) {
   if (wrappers.length === 0) return;
 
   const wrapperWidth = wrappers[0].offsetWidth;
-  const gap = 3;
+  const gap = 1;
+  const padding = 5;
 
   // Add red dotted line for current time
   if (currentBarIndex >= 0 && currentBarIndex < wrappers.length) {
     const currentLine = document.createElement('div');
     currentLine.className = 'chart-current-line';
-    const position = (currentBarIndex * (wrapperWidth + gap)) + (wrapperWidth / 2) + 10; // +10 for padding
+    const position = (currentBarIndex * (wrapperWidth + gap)) + (wrapperWidth / 2) + padding;
     currentLine.style.left = `${position}px`;
     chart.appendChild(currentLine);
   }
@@ -407,7 +408,7 @@ function addChartLines(currentBarIndex) {
     if (bestIndex >= 0) {
       const bestLine = document.createElement('div');
       bestLine.className = 'chart-best-line';
-      const position = (bestIndex * (wrapperWidth + gap)) + 10; // +10 for padding
+      const position = (bestIndex * (wrapperWidth + gap)) + padding;
       bestLine.style.left = `${position}px`;
       chart.appendChild(bestLine);
     }
