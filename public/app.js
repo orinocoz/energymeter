@@ -336,8 +336,8 @@ function updateChart() {
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
-  // Find best window
-  const best = findBestWindow(selectedDuration);
+  // Find best window for selected duration
+  const best = findBestWindowFromPrices(futurePrices, selectedDuration);
   const bestIndices = new Set();
   if (best && best.prices.length > 0) {
     best.prices.forEach(p => {
@@ -547,23 +547,17 @@ function updateChart() {
   }
 }
 
-// Find best consecutive window
-function findBestWindow(duration) {
-  const now = new Date();
-  now.setMinutes(0, 0, 0);
-
-  // Filter to only future prices
-  const futurePrices = pricesData.filter(p => new Date(p.timestamp) >= now);
-
-  if (futurePrices.length < duration) {
+// Find best consecutive window from given prices array
+function findBestWindowFromPrices(prices, duration) {
+  if (prices.length < duration) {
     return null;
   }
 
   let bestStart = 0;
   let bestAvg = Infinity;
 
-  for (let i = 0; i <= futurePrices.length - duration; i++) {
-    const window = futurePrices.slice(i, i + duration);
+  for (let i = 0; i <= prices.length - duration; i++) {
+    const window = prices.slice(i, i + duration);
     const avg = window.reduce((sum, p) => {
       const total = getTotalPrice(p.price, new Date(p.timestamp));
       return sum + total;
@@ -577,9 +571,20 @@ function findBestWindow(duration) {
 
   return {
     startIndex: bestStart,
-    prices: futurePrices.slice(bestStart, bestStart + duration),
+    prices: prices.slice(bestStart, bestStart + duration),
     avgPrice: bestAvg
   };
+}
+
+// Find best consecutive window (uses pricesData)
+function findBestWindow(duration) {
+  const now = new Date();
+  now.setMinutes(0, 0, 0);
+
+  // Filter to only future prices
+  const futurePrices = pricesData.filter(p => new Date(p.timestamp) >= now);
+
+  return findBestWindowFromPrices(futurePrices, duration);
 }
 
 // Update best window display
