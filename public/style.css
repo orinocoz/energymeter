@@ -233,10 +233,7 @@ section {
 }
 
 .chart-x-label {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  text-align: left;
-  height: 32px;
+  text-align: center;
   line-height: 1;
 }
 
