@@ -8,15 +8,10 @@
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1>Elektri börsihind</h1>
-      <p class="subtitle">Nord Pool börsihinnad Eestis</p>
-    </header>
-
     <main>
       <!-- Current Price Display -->
       <section class="current-price-section">
-        <div class="price-label">Hetke hind</div>
+        <div class="price-label">Elektri hetke börsihind</div>
         <div class="price-display">
           <span class="price-value" id="currentPrice">--</span>
           <span class="price-unit">s/kWh</span>
@@ -26,16 +21,27 @@
 
       <!-- Duration Selector -->
       <section class="duration-section">
-        <div class="duration-label">Vali mitu tundi järjest soovid elektrit tarbida:</div>
-        <div class="duration-buttons" id="durationButtons">
-          <button class="duration-btn active" data-hours="1">1h</button>
-          <button class="duration-btn" data-hours="2">2h</button>
-          <button class="duration-btn" data-hours="3">3h</button>
-          <button class="duration-btn" data-hours="4">4h</button>
-          <button class="duration-btn" data-hours="5">5h</button>
-          <button class="duration-btn" data-hours="6">6h</button>
-          <button class="duration-btn" data-hours="7">7h</button>
-          <button class="duration-btn" data-hours="8">8h</button>
+        <div class="duration-row">
+          <div class="duration-left">
+            <div class="duration-label">Vali mitu tundi järjest soovid elektrit tarbida:</div>
+            <div class="duration-buttons" id="durationButtons">
+              <button class="duration-btn active" data-hours="1">1h</button>
+              <button class="duration-btn" data-hours="2">2h</button>
+              <button class="duration-btn" data-hours="3">3h</button>
+              <button class="duration-btn" data-hours="4">4h</button>
+              <button class="duration-btn" data-hours="5">5h</button>
+              <button class="duration-btn" data-hours="6">6h</button>
+              <button class="duration-btn" data-hours="7">7h</button>
+              <button class="duration-btn" data-hours="8">8h</button>
+            </div>
+          </div>
+          <div class="resolution-wrapper">
+            <div class="resolution-label">Graafiku täpsus</div>
+            <div class="resolution-buttons" id="resolutionButtons">
+              <button class="resolution-btn" data-resolution="60">1h</button>
+              <button class="resolution-btn active" data-resolution="15">15m</button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -43,7 +49,7 @@
       <section class="chart-section">
         <div class="chart-header">
           <span class="chart-date" id="chartDate">--</span>
-          <span class="chart-unit">senti/kWh</span>
+          <span class="chart-unit">senti/kWh koos km</span>
         </div>
         <div class="chart-wrapper">
           <div class="chart-container">

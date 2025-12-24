@@ -1,8 +1,10 @@
 // State
-let pricesData = [];
+let pricesData = [];        // Raw 15-min data from API
+let displayPrices = [];     // Prices aggregated to selected resolution
 let defaults = {};
 let settings = {};
-let selectedDuration = 1;
+let selectedDuration = 1;   // Hours
+let selectedResolution = 15; // Minutes (60 = 1h, 15 = 15min)
 
 // DOM Elements
 const elements = {
@@ -25,7 +27,8 @@ const elements = {
   savings: document.getElementById('savings'),
   settingsGrid: document.getElementById('settingsGrid'),
   resetSettings: document.getElementById('resetSettings'),
-  lastUpdated: document.getElementById('lastUpdated')
+  lastUpdated: document.getElementById('lastUpdated'),
+  resolutionButtons: document.getElementById('resolutionButtons')
 };
 
 // Initialize
@@ -34,6 +37,18 @@ async function init() {
   loadSettings();
   renderSettings();
   await fetchPrices();
+
+  // Resolution button listeners
+  elements.resolutionButtons.addEventListener('click', (e) => {
+    if (e.target.classList.contains('resolution-btn')) {
+      document.querySelectorAll('.resolution-btn').forEach(btn => btn.classList.remove('active'));
+      e.target.classList.add('active');
+      selectedResolution = parseInt(e.target.dataset.resolution);
+      // Recalculate display prices and update everything
+      calculateDisplayPrices();
+      updateAll();
+    }
+  });
 
   // Duration button listeners
   elements.durationButtons.addEventListener('click', (e) => {
@@ -173,10 +188,44 @@ async function fetchPrices() {
     pricesData = data.prices;
     elements.lastUpdated.textContent = new Date(data.updated).toLocaleString('et-EE');
 
+    // Calculate display prices based on selected resolution
+    calculateDisplayPrices();
     updateAll();
   } catch (error) {
     console.error('Hindade laadimine ebaõnnestus:', error);
     elements.currentPrice.textContent = 'Viga';
+  }
+}
+
+// Calculate display prices based on resolution (aggregate 15-min to 1h if needed)
+function calculateDisplayPrices() {
+  if (selectedResolution === 15) {
+    // Use raw 15-minute data
+    displayPrices = pricesData;
+  } else {
+    // Aggregate to hourly: group by hour and average
+    const hourlyMap = new Map();
+
+    pricesData.forEach(p => {
+      const date = new Date(p.timestamp);
+      // Round down to hour
+      date.setMinutes(0, 0, 0);
+      const hourKey = date.toISOString();
+
+      if (!hourlyMap.has(hourKey)) {
+        hourlyMap.set(hourKey, { prices: [], timestamp: hourKey });
+      }
+      hourlyMap.get(hourKey).prices.push(p.price);
+    });
+
+    // Calculate average for each hour
+    displayPrices = Array.from(hourlyMap.values()).map(h => ({
+      timestamp: h.timestamp,
+      price: h.prices.reduce((a, b) => a + b, 0) / h.prices.length
+    }));
+
+    // Sort by timestamp
+    displayPrices.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   }
 }
 
@@ -204,15 +253,24 @@ function getTotalPrice(spotPrice, date) {
   return total;
 }
 
-// Get current hour's price data
+// Get current price data (finds matching 15-min or hourly slot)
 function getCurrentPriceData() {
   const now = new Date();
   const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
   const today = now.toDateString();
 
+  // For 15-min resolution, find the exact 15-min slot
+  // For hourly, find matching hour
   return pricesData.find(p => {
     const priceDate = new Date(p.timestamp);
-    return priceDate.toDateString() === today && priceDate.getHours() === currentHour;
+    if (priceDate.toDateString() !== today) return false;
+    if (priceDate.getHours() !== currentHour) return false;
+
+    // Check if this is the right 15-min slot
+    const priceMinute = priceDate.getMinutes();
+    const currentSlot = Math.floor(currentMinute / 15) * 15;
+    return priceMinute === currentSlot;
   });
 }
 
@@ -222,9 +280,11 @@ function updateCurrentPrice() {
 
   if (current) {
     const spotPrice = current.price;
+    // Add VAT to spot price for display
+    const spotPriceWithVat = spotPrice * (1 + settings.vatPercent / 100);
     const total = getTotalPrice(spotPrice, new Date(current.timestamp));
 
-    elements.currentPrice.textContent = spotPrice.toFixed(2);
+    elements.currentPrice.textContent = spotPriceWithVat.toFixed(2);
     elements.currentPriceTotal.textContent = `Koos tasudega: ${total.toFixed(2)} s/kWh`;
   } else {
     elements.currentPrice.textContent = '--';
@@ -236,7 +296,7 @@ function updateCurrentPrice() {
 function updateStats() {
   const now = new Date();
   const todayStr = now.toDateString();
-  const todayPrices = pricesData.filter(p => new Date(p.timestamp).toDateString() === todayStr);
+  const todayPrices = displayPrices.filter(p => new Date(p.timestamp).toDateString() === todayStr);
 
   if (todayPrices.length > 0) {
     const prices = todayPrices.map(p => p.price);
@@ -257,13 +317,19 @@ function updateChart() {
   xAxis.innerHTML = '';
   yAxis.innerHTML = '';
 
-  if (pricesData.length === 0) return;
+  if (displayPrices.length === 0) return;
 
   const now = new Date();
-  now.setMinutes(0, 0, 0);
+  // Round down to current resolution slot
+  if (selectedResolution === 15) {
+    const currentSlot = Math.floor(now.getMinutes() / 15) * 15;
+    now.setMinutes(currentSlot, 0, 0);
+  } else {
+    now.setMinutes(0, 0, 0);
+  }
 
-  // Filter to future prices only (from current hour onwards)
-  const futurePrices = pricesData.filter(p => new Date(p.timestamp) >= now);
+  // Filter to future prices only (from current slot onwards)
+  const futurePrices = displayPrices.filter(p => new Date(p.timestamp) >= now);
 
   if (futurePrices.length === 0) return;
 
@@ -301,17 +367,25 @@ function updateChart() {
 
   elements.chartDate.textContent = `${firstDate.toLocaleDateString('et-EE', { weekday: 'short', day: 'numeric', month: 'short' })} – ${lastDate.toLocaleDateString('et-EE', { weekday: 'short', day: 'numeric', month: 'short' })}`;
 
-  // Create x-axis labels every 2 hours (only even hours, no duplicates)
-  const shownHours = new Set();
+  // Create x-axis labels
+  const shownLabels = new Set();
+  const labelInterval = selectedResolution === 15 ? 4 : 2; // Every hour for 15min, every 2 hours for 1h
+
   for (let i = 0; i < futurePrices.length; i++) {
     const priceDate = new Date(futurePrices[i].timestamp);
     const hour = priceDate.getHours();
+    const minute = priceDate.getMinutes();
     const day = priceDate.getDate();
     const key = `${day}-${hour}`;
 
-    // Show label only for even hours and not already shown
-    if (hour % 2 === 0 && !shownHours.has(key)) {
-      shownHours.add(key);
+    // For 15-min: show label every full hour (minute === 0)
+    // For 1h: show label every 2 hours (even hours)
+    const shouldShow = selectedResolution === 15
+      ? (minute === 0 && !shownLabels.has(key))
+      : (hour % 2 === 0 && !shownLabels.has(key));
+
+    if (shouldShow) {
+      shownLabels.add(key);
       const span = document.createElement('span');
       span.className = 'chart-x-label';
       span.textContent = hour.toString().padStart(2, '0');
@@ -337,13 +411,16 @@ function updateChart() {
   const chartHeight = height - padding.top - padding.bottom;
 
   // Find best window for selected duration
-  const best = findBestWindowFromPrices(futurePrices, selectedDuration);
+  // For 15-min resolution, multiply duration hours by 4 to get number of slots
+  const slotsPerHour = selectedResolution === 15 ? 4 : 1;
+  const durationSlots = selectedDuration * slotsPerHour;
+  const best = findBestWindowFromPrices(futurePrices, durationSlots);
   const bestIndices = new Set();
-  if (best && best.prices.length > 0) {
-    best.prices.forEach(p => {
-      const idx = futurePrices.findIndex(fp => fp.timestamp === p.timestamp);
-      if (idx >= 0) bestIndices.add(idx);
-    });
+  if (best && best.startIndex !== undefined) {
+    // Use startIndex directly to mark all slots in the best window
+    for (let i = best.startIndex; i < best.startIndex + durationSlots && i < futurePrices.length; i++) {
+      bestIndices.add(i);
+    }
   }
 
   // Clear canvas
@@ -406,37 +483,59 @@ function updateChart() {
     }
   }
 
-  // Draw main line
+  // Calculate step width for stepped line chart
+  const stepWidth = points.length > 1 ? (points[1].x - points[0].x) : chartWidth;
+
+  // Draw main stepped line (blue)
   ctx.beginPath();
-  ctx.strokeStyle = '#3b82f6';
-  ctx.lineWidth = 2.5;
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#1e40af';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'miter';
+  ctx.lineCap = 'butt';
 
   points.forEach((point, i) => {
     if (i === 0) {
       ctx.moveTo(point.x, point.y);
     } else {
+      // Stepped line: horizontal first, then vertical
+      ctx.lineTo(point.x, points[i - 1].y);
       ctx.lineTo(point.x, point.y);
+    }
+    // Extend last point horizontally
+    if (i === points.length - 1) {
+      ctx.lineTo(point.x + stepWidth, point.y);
     }
   });
   ctx.stroke();
 
-  // Draw best window line segment (green)
+  // Draw best window stepped line segment (green) on top
   if (bestIndices.size > 0) {
     ctx.beginPath();
     ctx.strokeStyle = '#22c55e';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2.5;
 
     let started = false;
+    let prevPoint = null;
     points.forEach((point, i) => {
       if (point.isBest) {
         if (!started) {
           ctx.moveTo(point.x, point.y);
           started = true;
         } else {
+          // Stepped line for green section
+          ctx.lineTo(point.x, prevPoint.y);
           ctx.lineTo(point.x, point.y);
         }
+        prevPoint = point;
+        // Extend last best point
+        if (i === points.length - 1 || !points[i + 1]?.isBest) {
+          ctx.lineTo(point.x + stepWidth, point.y);
+        }
+      } else if (started && prevPoint) {
+        // End of best window - extend to this point's x
+        ctx.lineTo(point.x, prevPoint.y);
+        started = false;
+        prevPoint = null;
       }
     });
     ctx.stroke();
@@ -452,14 +551,6 @@ function updateChart() {
   ctx.lineTo(currentX, height - padding.bottom);
   ctx.stroke();
   ctx.setLineDash([]);
-
-  // Draw dots on line
-  points.forEach((point, i) => {
-    ctx.beginPath();
-    ctx.fillStyle = point.isBest ? '#22c55e' : '#3b82f6';
-    ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
-    ctx.fill();
-  });
 
   // Store points for tooltip
   canvas.chartPoints = points;
@@ -550,19 +641,23 @@ function updateChart() {
 
 // Find best consecutive window from given prices array
 function findBestWindowFromPrices(prices, duration) {
-  if (prices.length < duration) {
+  if (!prices || prices.length < duration || duration < 1) {
     return null;
   }
 
   let bestStart = 0;
   let bestAvg = Infinity;
 
+  // Iterate through all possible starting positions for the window
   for (let i = 0; i <= prices.length - duration; i++) {
-    const window = prices.slice(i, i + duration);
-    const avg = window.reduce((sum, p) => {
+    // Calculate average price for this window (consecutive hours)
+    let totalPrice = 0;
+    for (let j = 0; j < duration; j++) {
+      const p = prices[i + j];
       const total = getTotalPrice(p.price, new Date(p.timestamp));
-      return sum + total;
-    }, 0) / duration;
+      totalPrice += total;
+    }
+    const avg = totalPrice / duration;
 
     if (avg < bestAvg) {
       bestAvg = avg;
@@ -570,22 +665,37 @@ function findBestWindowFromPrices(prices, duration) {
     }
   }
 
+  const windowPrices = prices.slice(bestStart, bestStart + duration);
+
+  console.log(`Best window for ${duration}h: starts at index ${bestStart}, avg price: ${bestAvg.toFixed(2)}`);
+  console.log(`Window hours:`, windowPrices.map(p => new Date(p.timestamp).getHours() + ':00').join(', '));
+
   return {
     startIndex: bestStart,
-    prices: prices.slice(bestStart, bestStart + duration),
+    prices: windowPrices,
     avgPrice: bestAvg
   };
 }
 
-// Find best consecutive window (uses pricesData)
-function findBestWindow(duration) {
+// Find best consecutive window (uses displayPrices)
+function findBestWindow(durationHours) {
   const now = new Date();
-  now.setMinutes(0, 0, 0);
+  // Round down to current resolution slot
+  if (selectedResolution === 15) {
+    const currentSlot = Math.floor(now.getMinutes() / 15) * 15;
+    now.setMinutes(currentSlot, 0, 0);
+  } else {
+    now.setMinutes(0, 0, 0);
+  }
 
   // Filter to only future prices
-  const futurePrices = pricesData.filter(p => new Date(p.timestamp) >= now);
+  const futurePrices = displayPrices.filter(p => new Date(p.timestamp) >= now);
 
-  return findBestWindowFromPrices(futurePrices, duration);
+  // Convert duration in hours to slots
+  const slotsPerHour = selectedResolution === 15 ? 4 : 1;
+  const durationSlots = durationHours * slotsPerHour;
+
+  return findBestWindowFromPrices(futurePrices, durationSlots);
 }
 
 // Update best window display
@@ -595,7 +705,12 @@ function updateBestWindow() {
   if (best && best.prices.length > 0) {
     const startTime = new Date(best.prices[0].timestamp);
     const endTime = new Date(best.prices[best.prices.length - 1].timestamp);
-    endTime.setHours(endTime.getHours() + 1);
+    // Add one slot duration to end time
+    if (selectedResolution === 15) {
+      endTime.setMinutes(endTime.getMinutes() + 15);
+    } else {
+      endTime.setHours(endTime.getHours() + 1);
+    }
 
     const timeStr = `${startTime.toLocaleTimeString('et-EE', { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString('et-EE', { hour: '2-digit', minute: '2-digit' })}`;
 
