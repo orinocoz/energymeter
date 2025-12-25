@@ -29,6 +29,8 @@ const elements = {
   costOptimal: document.getElementById('costOptimal'),
   savings: document.getElementById('savings'),
   settingsGrid: document.getElementById('settingsGrid'),
+  networkPackage: document.getElementById('networkPackage'),
+  packageInfo: document.getElementById('packageInfo'),
   resetSettings: document.getElementById('resetSettings'),
   lastUpdated: document.getElementById('lastUpdated'),
   resolutionButtons: document.getElementById('resolutionButtons')
@@ -197,6 +199,9 @@ function loadSettings() {
     settings = JSON.parse(saved);
   } else {
     settings = { ...defaults.fees };
+    // default network package selection (prefer VORK2 if available)
+    const pkgs = defaults.network_tariffs && defaults.network_tariffs.packages_low_voltage_upto_63A ? Object.keys(defaults.network_tariffs.packages_low_voltage_upto_63A) : [];
+    settings.networkPackage = pkgs.includes('VORK2') ? 'VORK2' : (pkgs[0] || null);
   }
 }
 
@@ -208,6 +213,8 @@ function saveSettings() {
 // Reset settings to defaults
 function resetSettings() {
   settings = { ...defaults.fees };
+  const pkgs = defaults.network_tariffs && defaults.network_tariffs.packages_low_voltage_upto_63A ? Object.keys(defaults.network_tariffs.packages_low_voltage_upto_63A) : [];
+  settings.networkPackage = pkgs.includes('VORK2') ? 'VORK2' : (pkgs[0] || null);
   saveSettings();
   renderSettings();
   updateAll();
@@ -257,6 +264,58 @@ function renderSettings() {
       saveSettings();
       updateAll();
     });
+
+    item.appendChild(label);
+    inputGroup.appendChild(input);
+
+    const unit = document.createElement('span');
+    unit.className = 'unit';
+    unit.textContent = units[key];
+
+    inputGroup.appendChild(unit);
+    item.appendChild(inputGroup);
+    grid.appendChild(item);
+  });
+
+  // Populate network package selector
+  const networkSelect = document.getElementById('networkPackage');
+  const packageInfo = document.getElementById('packageInfo');
+  if (networkSelect && defaults.network_tariffs && defaults.network_tariffs.packages_low_voltage_upto_63A) {
+    networkSelect.innerHTML = '';
+    const pkgs = defaults.network_tariffs.packages_low_voltage_upto_63A;
+    Object.keys(pkgs).forEach(key => {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = `${key} — ${pkgs[key].label}`;
+      networkSelect.appendChild(opt);
+    });
+
+    // Set current value
+    networkSelect.value = settings.networkPackage || networkSelect.options[0]?.value;
+    renderPackageInfo(networkSelect.value);
+
+    networkSelect.addEventListener('change', (e) => {
+      settings.networkPackage = e.target.value;
+      saveSettings();
+      renderPackageInfo(settings.networkPackage);
+      updateAll();
+    });
+  }
+
+  // Helper to show package info
+  function renderPackageInfo(pkgId) {
+    if (!packageInfo) return;
+    const pkgs = defaults.network_tariffs.packages_low_voltage_upto_63A;
+    if (!pkgs || !pkgId || !pkgs[pkgId]) {
+      packageInfo.textContent = '';
+      return;
+    }
+    const p = pkgs[pkgId];
+    const periods = p.periods.join(', ');
+    const dayPrice = p.energy_cents_per_kwh.excl_vat.DAY !== undefined ? `${p.energy_cents_per_kwh.excl_vat.DAY} s/kWh (päev)` : '';
+    const flat = p.energy_cents_per_kwh.excl_vat.FLAT !== undefined ? `${p.energy_cents_per_kwh.excl_vat.FLAT} s/kWh (flat)` : '';
+    packageInfo.textContent = `${periods} ${dayPrice}${flat ? (dayPrice ? ' • ' : '') + flat : ''}`;
+  }
 
     const unit = document.createElement('span');
     unit.className = 'unit';
@@ -333,18 +392,164 @@ function updateAll() {
   updateCostCalculator();
 }
 
-// Check if hour is day tariff
-function isDayHour(date) {
-  const hour = date.getHours();
-  return hour >= defaults.dayHours.start && hour < defaults.dayHours.end;
+// --- Holiday & time rules helpers ---
+function parseTimeToMinutes(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + (m || 0);
 }
 
-// Calculate total price with fees
+function timeInRange(date, startHHMM, endHHMM) {
+  const mins = date.getHours() * 60 + date.getMinutes();
+  const start = parseTimeToMinutes(startHHMM);
+  const end = parseTimeToMinutes(endHHMM);
+  if (start <= end) {
+    return mins >= start && mins < end;
+  }
+  // Overnight range (e.g., 22:00 - 07:00)
+  return mins >= start || mins < end;
+}
+
+// Compute Easter Sunday (Gregorian algorithm)
+function easterSunday(year) {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+const holidayCache = {};
+function getHolidaysForYear(year) {
+  if (holidayCache[year]) return holidayCache[year];
+  const holidays = new Set();
+  const rules = defaults.network_tariffs?.estonia_public_holidays?.rules || [];
+  rules.forEach(r => {
+    if (r.type === 'fixed') {
+      const d = new Date(year, r.month - 1, r.day);
+      holidays.add(d.toDateString());
+    } else if (r.type === 'easter_offset') {
+      const easter = easterSunday(year);
+      const d = new Date(easter);
+      d.setDate(d.getDate() + (r.offset_days || 0));
+      holidays.add(d.toDateString());
+    }
+  });
+  holidayCache[year] = holidays;
+  return holidays;
+}
+
+function isPublicHoliday(date) {
+  const y = date.getFullYear();
+  const set = getHolidaysForYear(y);
+  return set.has(new Date(date.getFullYear(), date.getMonth(), date.getDate()).toDateString());
+}
+
+function isWeekend(date) {
+  const dow = date.getDay();
+  return dow === 0 || dow === 6;
+}
+
+function isRestDay(date) {
+  return isWeekend(date) || isPublicHoliday(date);
+}
+
+// Determine the base DAY/NIGHT according to time_rules
+function baseDayRuleMatches(date) {
+  const dayRule = defaults.network_tariffs?.time_rules?.day;
+  if (!dayRule) {
+    // fallback to previous defaults
+    return date.getHours() >= defaults.dayHours.start && date.getHours() < defaults.dayHours.end;
+  }
+  const dow = date.getDay(); // 0 Sun ... 6 Sat
+  const isWeekday = dow >= 1 && dow <= 5;
+  if (!isWeekday) return false;
+  if (isPublicHoliday(date)) return false;
+  return timeInRange(date, dayRule.start, dayRule.end);
+}
+
+// Determine package-specific period (DAY, NIGHT, DAY_PEAK, REST_PEAK, FLAT)
+function getPackagePeriod(pkgId, date) {
+  const pkgs = defaults.network_tariffs?.packages_low_voltage_upto_63A || {};
+  const pkg = pkgs[pkgId];
+  // fallback
+  if (!pkg) {
+    return baseDayRuleMatches(date) ? 'DAY' : 'NIGHT';
+  }
+
+  // If package has FLAT only
+  if (pkg.periods && pkg.periods.includes('FLAT')) return 'FLAT';
+
+  // Peaks logic
+  const peaks = defaults.network_tariffs?.time_rules?.peaks;
+  const month = date.getMonth() + 1; // 1-12
+  const winterMonths = peaks?.season?.winter?.months || [11,12,1,2,3];
+  const inWinter = winterMonths.includes(month);
+
+  // REST_PEAK check: if rest day and window matches
+  if (pkg.periods.includes('REST_PEAK') && inWinter && isRestDay(date)) {
+    const windows = peaks?.rest_day_peak_windows_winter || [];
+    for (const w of windows) {
+      if (timeInRange(date, w.start, w.end)) return 'REST_PEAK';
+    }
+  }
+
+  // DAY_PEAK check: if weekday and window matches
+  if (pkg.periods.includes('DAY_PEAK') && inWinter && !isRestDay(date)) {
+    const windows = peaks?.weekday_day_peak_windows_winter || [];
+    for (const w of windows) {
+      if (timeInRange(date, w.start, w.end)) return 'DAY_PEAK';
+    }
+  }
+
+  // Day or night fallback
+  return baseDayRuleMatches(date) ? 'DAY' : 'NIGHT';
+}
+
+function getNetworkEnergyPrice(pkgId, date) {
+  // returns cents per kWh (excl VAT)
+  const pkgs = defaults.network_tariffs?.packages_low_voltage_upto_63A || {};
+  const pkg = pkgs[pkgId];
+  if (pkg) {
+    const period = getPackagePeriod(pkgId, date);
+    const price = pkg.energy_cents_per_kwh?.excl_vat?.[period];
+    if (price !== undefined) return price;
+    // Try DAY/NIGHT fallback
+    if (period !== 'FLAT') {
+      const tryPeriod = period === 'DAY_PEAK' || period === 'REST_PEAK' ? 'DAY' : period;
+      const fallback = pkg.energy_cents_per_kwh?.excl_vat?.[tryPeriod];
+      if (fallback !== undefined) return fallback;
+    }
+  }
+  // Fallback to old transferDay/transferNight settings
+  return baseDayRuleMatches(date) ? settings.transferDay : settings.transferNight;
+}
+
+// Calculate total price with fees (spotPrice and network fees + national fees), VAT applied at the end
 function getTotalPrice(spotPrice, date) {
-  const isDay = isDayHour(date);
-  const transferFee = isDay ? settings.transferDay : settings.transferNight;
-  const subtotal = spotPrice + transferFee + settings.renewableSurcharge + settings.exciseTax;
-  const total = subtotal * (1 + settings.vatPercent / 100);
+  const networkFee = getNetworkEnergyPrice(settings.networkPackage, date);
+  const national = defaults.network_tariffs?.national_fees_and_taxes_cents_per_kwh || {};
+  const renewable = national.renewable_energy_fee?.excl_vat ?? settings.renewableSurcharge ?? 0;
+  const excise = national.electricity_excise?.excl_vat ?? settings.exciseTax ?? 0;
+
+  let securityFee = 0;
+  const sec = national.security_of_supply_fee;
+  if (sec && sec.effective_from) {
+    const eff = new Date(sec.effective_from + 'T00:00:00Z');
+    if (date >= eff) securityFee = sec.excl_vat || 0;
+  }
+
+  const subtotal = spotPrice + networkFee + renewable + excise + securityFee;
+  const total = subtotal * (1 + (settings.vatPercent || defaults.fees?.vatPercent || 0) / 100);
   return total;
 }
 
@@ -380,7 +585,9 @@ function updateCurrentPrice() {
     const total = getTotalPrice(spotPrice, new Date(current.timestamp));
 
     elements.currentPrice.textContent = spotPriceWithVat.toFixed(2);
-    elements.currentPriceTotal.textContent = `Koos tasudega: ${total.toFixed(2)} s/kWh`;
+    const pkgId = settings.networkPackage;
+    const pkgLabel = defaults.network_tariffs?.packages_low_voltage_upto_63A?.[pkgId]?.label || '';
+    elements.currentPriceTotal.textContent = `Koos tasudega: ${total.toFixed(2)} s/kWh${pkgLabel ? ' (' + pkgLabel + ')' : ''}`;
   } else {
     elements.currentPrice.textContent = '--';
     elements.currentPriceTotal.textContent = 'Koos tasudega: -- s/kWh';
