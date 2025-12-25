@@ -5,6 +5,7 @@ let defaults = {};
 let settings = {};
 let selectedDuration = 1;   // Hours
 let selectedResolution = 15; // Minutes (60 = 1h, 15 = 15min)
+let selectedMode = 'consecutive'; // 'consecutive' or 'cheapest'
 
 // DOM Elements
 const elements = {
@@ -17,6 +18,8 @@ const elements = {
   priceChart: document.getElementById('priceChart'),
   chartXAxis: document.getElementById('chartXAxis'),
   durationButtons: document.getElementById('durationButtons'),
+  durationCustom: document.getElementById('durationCustom'),
+  durationModeButtons: document.getElementById('durationModeButtons'),
   bestWindowTime: document.getElementById('bestWindowTime'),
   bestWindowPrice: document.getElementById('bestWindowPrice'),
   countdownBox: document.getElementById('countdownBox'),
@@ -56,12 +59,104 @@ async function init() {
       document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
       e.target.classList.add('active');
       selectedDuration = parseInt(e.target.dataset.hours);
+      // Sync custom input
+      if (elements.durationCustom) {
+        elements.durationCustom.value = selectedDuration;
+        elements.durationCustom.classList.remove('invalid');
+      }
       // Redraw chart with new duration selection
       updateChart();
       updateBestWindow();
       updateCostCalculator();
     }
   });
+
+  // Custom duration input handling (integer-only)
+  if (elements.durationCustom) {
+    const sanitizeAndApply = () => {
+      const raw = elements.durationCustom.value;
+      if (raw === '' || raw === null) {
+        // Clear selection (restore default button state if any)
+        document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
+        elements.durationCustom.classList.remove('invalid');
+        updateChart();
+        updateBestWindow();
+        updateCostCalculator();
+        return;
+      }
+
+      // Parse integer only
+      const intVal = parseInt(raw, 10);
+      if (isNaN(intVal) || intVal < 1) {
+        elements.durationCustom.classList.add('invalid');
+        return;
+      }
+
+      // If user typed a non-integer like 2.5, normalize to integer
+      if (String(intVal) !== String(raw)) {
+        elements.durationCustom.value = intVal;
+      }
+
+      elements.durationCustom.classList.remove('invalid');
+
+      // Apply as selected duration and clear button active state
+      selectedDuration = intVal;
+      document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
+
+      updateChart();
+      updateBestWindow();
+      updateCostCalculator();
+    };
+
+    elements.durationCustom.addEventListener('input', () => {
+      sanitizeAndApply();
+    });
+
+    elements.durationCustom.addEventListener('focus', () => {
+      // Apply current value while focused
+      sanitizeAndApply();
+    });
+
+    elements.durationCustom.addEventListener('blur', () => {
+      // Final sanitize on blur
+      const raw = elements.durationCustom.value;
+      const intVal = parseInt(raw, 10);
+      if (isNaN(intVal) || intVal < 1) {
+        // Keep blank if invalid
+        elements.durationCustom.classList.remove('invalid');
+        elements.durationCustom.value = '';
+        // Optionally reset to default 1h
+        // selectedDuration = 1;
+        // document.querySelector('.duration-btn[data-hours="1"]').classList.add('active');
+        updateChart();
+        updateBestWindow();
+        updateCostCalculator();
+        return;
+      }
+      // Ensure normalized integer value is set
+      elements.durationCustom.value = intVal;
+      elements.durationCustom.classList.remove('invalid');
+      selectedDuration = intVal;
+      updateChart();
+      updateBestWindow();
+      updateCostCalculator();
+    });
+  }
+
+  // Duration mode (consecutive vs cheapest) listeners
+  if (elements.durationModeButtons) {
+    elements.durationModeButtons.addEventListener('click', (e) => {
+      if (e.target.classList.contains('duration-mode-btn')) {
+        document.querySelectorAll('.duration-mode-btn').forEach(btn => btn.classList.remove('active'));
+        e.target.classList.add('active');
+        selectedMode = e.target.dataset.mode;
+        // Update views
+        updateChart();
+        updateBestWindow();
+        updateCostCalculator();
+      }
+    });
+  }
 
   elements.kwhInput.addEventListener('input', updateCostCalculator);
   elements.resetSettings.addEventListener('click', resetSettings);
@@ -410,16 +505,18 @@ function updateChart() {
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
-  // Find best window for selected duration
-  // For 15-min resolution, multiply duration hours by 4 to get number of slots
-  const slotsPerHour = selectedResolution === 15 ? 4 : 1;
-  const durationSlots = selectedDuration * slotsPerHour;
-  const best = findBestWindowFromPrices(futurePrices, durationSlots);
+  // Determine best selection (consecutive or cheapest non-consecutive)
+  const best = getBestSelectionFromFuturePrices(futurePrices, selectedDuration);
   const bestIndices = new Set();
-  if (best && best.startIndex !== undefined) {
-    // Use startIndex directly to mark all slots in the best window
-    for (let i = best.startIndex; i < best.startIndex + durationSlots && i < futurePrices.length; i++) {
-      bestIndices.add(i);
+  if (best) {
+    if (best.indices) {
+      best.indices.forEach(i => bestIndices.add(i));
+    } else if (best.startIndex !== undefined) {
+      // Backwards compatible: fill range for consecutive result
+      const slotsToFill = selectedResolution === 15 ? selectedDuration * 4 : selectedDuration;
+      for (let i = best.startIndex; i < best.startIndex + slotsToFill && i < futurePrices.length; i++) {
+        bestIndices.add(i);
+      }
     }
   }
 
@@ -457,30 +554,50 @@ function updateChart() {
     return { x, y, price: p.price, timestamp: p.timestamp, isBest: bestIndices.has(i) };
   });
 
-  // Draw best window as green vertical bar/column spanning full height
+  // Draw best selection as green vertical bars/columns spanning full height (supports multiple non-consecutive groups)
   if (bestIndices.size > 0) {
-    const firstBestIdx = points.findIndex(p => p.isBest);
-    const lastBestIdx = points.length - 1 - [...points].reverse().findIndex(p => p.isBest);
+    // Build sorted list of indices
+    const sortedBestIdx = Array.from(bestIndices).sort((a, b) => a - b);
+    // Group contiguous ranges
+    const groups = [];
+    let groupStart = sortedBestIdx[0];
+    let prev = sortedBestIdx[0];
 
-    if (firstBestIdx >= 0 && lastBestIdx >= 0) {
-      const barX = points[firstBestIdx].x;
-      const barWidth = points[lastBestIdx].x - points[firstBestIdx].x + (chartWidth / (futurePrices.length - 1));
-
-      ctx.beginPath();
-      ctx.fillStyle = 'rgba(34, 197, 94, 0.25)';
-      ctx.fillRect(barX - 2, padding.top, barWidth, chartHeight);
-
-      // Draw left and right borders of the green zone
-      ctx.beginPath();
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.6)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([]);
-      ctx.moveTo(barX, padding.top);
-      ctx.lineTo(barX, height - padding.bottom);
-      ctx.moveTo(barX + barWidth - 4, padding.top);
-      ctx.lineTo(barX + barWidth - 4, height - padding.bottom);
-      ctx.stroke();
+    for (let i = 1; i < sortedBestIdx.length; i++) {
+      const cur = sortedBestIdx[i];
+      if (cur === prev + 1) {
+        prev = cur;
+      } else {
+        groups.push([groupStart, prev]);
+        groupStart = cur;
+        prev = cur;
+      }
     }
+    groups.push([groupStart, prev]);
+
+    groups.forEach(([startIdx, endIdx]) => {
+      const firstBestIdx = startIdx;
+      const lastBestIdx = endIdx;
+      if (firstBestIdx >= 0 && lastBestIdx >= 0 && points[firstBestIdx] && points[lastBestIdx]) {
+        const barX = points[firstBestIdx].x;
+        const barWidth = points[lastBestIdx].x - points[firstBestIdx].x + (chartWidth / (futurePrices.length - 1));
+
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.25)';
+        ctx.fillRect(barX - 2, padding.top, barWidth, chartHeight);
+
+        // Draw left and right borders of the green zone
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(34, 197, 94, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        ctx.moveTo(barX, padding.top);
+        ctx.lineTo(barX, height - padding.bottom);
+        ctx.moveTo(barX + barWidth - 4, padding.top);
+        ctx.lineTo(barX + barWidth - 4, height - padding.bottom);
+        ctx.stroke();
+      }
+    });
   }
 
   // Calculate step width for stepped line chart
@@ -650,7 +767,7 @@ function findBestWindowFromPrices(prices, duration) {
 
   // Iterate through all possible starting positions for the window
   for (let i = 0; i <= prices.length - duration; i++) {
-    // Calculate average price for this window (consecutive hours)
+    // Calculate average price for this window (consecutive slots)
     let totalPrice = 0;
     for (let j = 0; j < duration; j++) {
       const p = prices[i + j];
@@ -667,14 +784,87 @@ function findBestWindowFromPrices(prices, duration) {
 
   const windowPrices = prices.slice(bestStart, bestStart + duration);
 
-  console.log(`Best window for ${duration}h: starts at index ${bestStart}, avg price: ${bestAvg.toFixed(2)}`);
+  console.log(`Best window for ${duration} slots: starts at index ${bestStart}, avg price: ${bestAvg.toFixed(2)}`);
   console.log(`Window hours:`, windowPrices.map(p => new Date(p.timestamp).getHours() + ':00').join(', '));
 
   return {
     startIndex: bestStart,
+    indices: new Set(Array.from({ length: Math.min(duration, prices.length - bestStart) }, (_, k) => bestStart + k)),
     prices: windowPrices,
     avgPrice: bestAvg
   };
+}
+
+// Find cheapest non-consecutive hours (returns indices set of slots and avg price)
+function findCheapestNonConsecutiveFromPrices(prices, durationHours) {
+  if (!prices || prices.length === 0 || durationHours < 1) return null;
+
+  // For 15-min resolution we group into hours
+  const slotsPerHour = selectedResolution === 15 ? 4 : 1;
+  const hoursNeeded = durationHours;
+
+  // Build hour groups: key = ISO hour start, value = { indices: [], totalPrices: [], hourStart }
+  const hourMap = new Map();
+
+  prices.forEach((p, i) => {
+    const d = new Date(p.timestamp);
+    const hourStart = new Date(d);
+    hourStart.setMinutes(0, 0, 0);
+    const hourKey = hourStart.toISOString();
+
+    if (!hourMap.has(hourKey)) {
+      hourMap.set(hourKey, { indices: [], totalPrices: [], hourStart });
+    }
+    const g = hourMap.get(hourKey);
+    g.indices.push(i);
+    g.totalPrices.push(getTotalPrice(p.price, d));
+  });
+
+  // Compute average total price per hour
+  const hoursArr = Array.from(hourMap.values()).map(h => ({
+    hourStart: h.hourStart,
+    indices: h.indices,
+    avgTotal: h.totalPrices.reduce((a, b) => a + b, 0) / h.totalPrices.length
+  }));
+
+  // If there are fewer available hours than requested, return null
+  if (hoursArr.length < hoursNeeded) return null;
+
+  // Sort by avgTotal ascending and pick cheapest hoursNeeded
+  hoursArr.sort((a, b) => a.avgTotal - b.avgTotal);
+  const chosen = hoursArr.slice(0, hoursNeeded);
+
+  // Build indices set and compute overall average
+  const selectedIndices = new Set();
+  let totalOfChosen = 0;
+  chosen.forEach(c => {
+    c.indices.forEach(idx => selectedIndices.add(idx));
+    totalOfChosen += c.avgTotal;
+  });
+
+  const overallAvg = totalOfChosen / chosen.length;
+
+  // Sort chosen hours by time for display
+  chosen.sort((a, b) => a.hourStart - b.hourStart);
+
+  return {
+    indices: selectedIndices,
+    hours: chosen.map(c => c.hourStart),
+    avgPrice: overallAvg
+  };
+}
+
+// General getter for best selection depending on mode
+function getBestSelectionFromFuturePrices(futurePrices, durationHours) {
+  if (!futurePrices || futurePrices.length === 0) return null;
+  const slotsPerHour = selectedResolution === 15 ? 4 : 1;
+
+  if (selectedMode === 'consecutive') {
+    const durationSlots = durationHours * slotsPerHour;
+    return findBestWindowFromPrices(futurePrices, durationSlots);
+  } else {
+    return findCheapestNonConsecutiveFromPrices(futurePrices, durationHours);
+  }
 }
 
 // Find best consecutive window (uses displayPrices)
@@ -700,22 +890,41 @@ function findBestWindow(durationHours) {
 
 // Update best window display
 function updateBestWindow() {
-  const best = findBestWindow(selectedDuration);
+  // Recompute future prices and selection
+  const now = new Date();
+  if (selectedResolution === 15) {
+    const currentSlot = Math.floor(now.getMinutes() / 15) * 15;
+    now.setMinutes(currentSlot, 0, 0);
+  } else {
+    now.setMinutes(0, 0, 0);
+  }
+  const futurePrices = displayPrices.filter(p => new Date(p.timestamp) >= now);
 
-  if (best && best.prices.length > 0) {
-    const startTime = new Date(best.prices[0].timestamp);
-    const endTime = new Date(best.prices[best.prices.length - 1].timestamp);
-    // Add one slot duration to end time
-    if (selectedResolution === 15) {
-      endTime.setMinutes(endTime.getMinutes() + 15);
+  const best = getBestSelectionFromFuturePrices(futurePrices, selectedDuration);
+
+  if (best) {
+    // Consecutive mode: best.prices may contain the window prices
+    if (selectedMode === 'consecutive' && best.prices && best.prices.length > 0) {
+      const startTime = new Date(best.prices[0].timestamp);
+      const endTime = new Date(best.prices[best.prices.length - 1].timestamp);
+      if (selectedResolution === 15) {
+        endTime.setMinutes(endTime.getMinutes() + 15);
+      } else {
+        endTime.setHours(endTime.getHours() + 1);
+      }
+      const timeStr = `${startTime.toLocaleTimeString('et-EE', { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString('et-EE', { hour: '2-digit', minute: '2-digit' })}`;
+      elements.bestWindowTime.textContent = timeStr;
+      elements.bestWindowPrice.textContent = `${best.avgPrice.toFixed(2)} s/kWh`;
+    } else if (selectedMode === 'cheapest' && best.hours && best.hours.length > 0) {
+      // Show list of cheapest hours
+      const times = best.hours.map(h => new Date(h).toLocaleTimeString('et-EE', { hour: '2-digit', minute: '2-digit' }));
+      const timeStr = times.length <= 4 ? times.join(', ') : `${times.slice(0, 3).join(', ')} + ${times.length - 3} more`;
+      elements.bestWindowTime.textContent = timeStr;
+      elements.bestWindowPrice.textContent = `${best.avgPrice.toFixed(2)} s/kWh`;
     } else {
-      endTime.setHours(endTime.getHours() + 1);
+      elements.bestWindowTime.textContent = 'Pole piisavalt andmeid';
+      elements.bestWindowPrice.textContent = '-- s/kWh';
     }
-
-    const timeStr = `${startTime.toLocaleTimeString('et-EE', { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString('et-EE', { hour: '2-digit', minute: '2-digit' })}`;
-
-    elements.bestWindowTime.textContent = timeStr;
-    elements.bestWindowPrice.textContent = `${best.avgPrice.toFixed(2)} s/kWh`;
 
     updateCountdown();
   } else {
@@ -727,12 +936,36 @@ function updateBestWindow() {
 
 // Update countdown
 function updateCountdown() {
-  const best = findBestWindow(selectedDuration);
+  // Recompute future prices and selection
+  const now = new Date();
+  if (selectedResolution === 15) {
+    const currentSlot = Math.floor(now.getMinutes() / 15) * 15;
+    now.setMinutes(currentSlot, 0, 0);
+  } else {
+    now.setMinutes(0, 0, 0);
+  }
+  const futurePrices = displayPrices.filter(p => new Date(p.timestamp) >= now);
+  const best = getBestSelectionFromFuturePrices(futurePrices, selectedDuration);
 
-  if (best && best.prices.length > 0) {
-    const startTime = new Date(best.prices[0].timestamp);
-    const now = new Date();
-    const diff = startTime - now;
+  if (best) {
+    // Determine next upcoming chosen time
+    let nextStart = null;
+
+    if (selectedMode === 'consecutive' && best.prices && best.prices.length > 0) {
+      nextStart = new Date(best.prices[0].timestamp);
+    } else if (selectedMode === 'cheapest' && best.hours && best.hours.length > 0) {
+      // pick the earliest chosen hour that is >= now
+      nextStart = best.hours.find(h => new Date(h) >= new Date());
+      if (!nextStart) nextStart = best.hours[0];
+    }
+
+    if (!nextStart) {
+      elements.countdownBox.classList.add('waiting');
+      elements.countdownText.textContent = '--';
+      return;
+    }
+
+    const diff = new Date(nextStart) - new Date();
 
     if (diff <= 0) {
       elements.countdownBox.classList.remove('waiting');
@@ -748,6 +981,9 @@ function updateCountdown() {
         elements.countdownText.textContent = `Soodsaim aeg algab ${minutes} minuti pärast`;
       }
     }
+  } else {
+    elements.countdownBox.classList.add('waiting');
+    elements.countdownText.textContent = '--';
   }
 }
 
@@ -756,7 +992,18 @@ function updateCostCalculator() {
   const kwh = parseFloat(elements.kwhInput.value) || 0;
 
   const current = getCurrentPriceData();
-  const best = findBestWindow(selectedDuration);
+  const best = (function() {
+    // compute best selection avgPrice similarly to other functions
+    const now = new Date();
+    if (selectedResolution === 15) {
+      const currentSlot = Math.floor(now.getMinutes() / 15) * 15;
+      now.setMinutes(currentSlot, 0, 0);
+    } else {
+      now.setMinutes(0, 0, 0);
+    }
+    const futurePrices = displayPrices.filter(p => new Date(p.timestamp) >= now);
+    return getBestSelectionFromFuturePrices(futurePrices, selectedDuration);
+  })();
 
   if (current) {
     const currentTotal = getTotalPrice(current.price, new Date(current.timestamp));
@@ -766,7 +1013,7 @@ function updateCostCalculator() {
     elements.costNow.textContent = '--';
   }
 
-  if (best) {
+  if (best && best.avgPrice !== undefined) {
     const costOptimal = (best.avgPrice * kwh / 100).toFixed(3);
     elements.costOptimal.textContent = `€${costOptimal}`;
 

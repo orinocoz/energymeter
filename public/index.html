@@ -24,6 +24,17 @@
         <div class="duration-row">
           <div class="duration-left">
             <div class="duration-label">Vali mitu tundi järjest soovid elektrit tarbida:</div>
+
+            <!-- Mode selector: keep existing consecutive option or choose cheapest non-consecutive hours -->
+            <div class="duration-mode">
+              <div class="mode-label">Režiim</div>
+              <div class="duration-mode-buttons" id="durationModeButtons">
+                <button class="duration-mode-btn active" data-mode="consecutive" title="Vali mitu tundi järjest">Järjest</button>
+                <button class="duration-mode-btn" data-mode="cheapest" title="Vali mitu tundi (odavaimad, mitte järjest)">Odavaimad</button>
+              </div>
+              <div class="mode-note">Vali mitu tundi soovid elektrit tarbida — "Odavaimad" valib odavaimad tunnid, need ei pea olema järjest.</div>
+            </div>
+
             <div class="duration-buttons" id="durationButtons">
               <button class="duration-btn active" data-hours="1">1h</button>
               <button class="duration-btn" data-hours="2">2h</button>
@@ -33,6 +44,8 @@
               <button class="duration-btn" data-hours="6">6h</button>
               <button class="duration-btn" data-hours="7">7h</button>
               <button class="duration-btn" data-hours="8">8h</button>
+              <!-- Custom hours input (number only, integers) -->
+              <input id="durationCustom" class="duration-custom" type="number" min="1" step="1" placeholder="Muu..." aria-label="Sisesta tunnid täisarvuna">
             </div>
           </div>
           <div class="resolution-wrapper">
