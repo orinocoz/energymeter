@@ -281,7 +281,8 @@ function renderSettings() {
   const networkSelect = document.getElementById('networkPackage');
   const packageInfo = document.getElementById('packageInfo');
   if (networkSelect && defaults.network_tariffs && defaults.network_tariffs.packages_low_voltage_upto_63A) {
-    networkSelect.innerHTML = '';
+    // Add an explicit empty option (no package selected)
+    networkSelect.innerHTML = '<option value="">Pole valitud</option>';
     const pkgs = defaults.network_tariffs.packages_low_voltage_upto_63A;
     Object.keys(pkgs).forEach(key => {
       const opt = document.createElement('option');
@@ -290,12 +291,12 @@ function renderSettings() {
       networkSelect.appendChild(opt);
     });
 
-    // Set current value
-    networkSelect.value = settings.networkPackage || networkSelect.options[0]?.value;
+    // Set current value (allow empty)
+    networkSelect.value = (settings.networkPackage === undefined || settings.networkPackage === null) ? '' : settings.networkPackage;
     renderPackageInfo(networkSelect.value);
 
     networkSelect.addEventListener('change', (e) => {
-      settings.networkPackage = e.target.value;
+      settings.networkPackage = e.target.value || null; // store null when unselected
       saveSettings();
       renderPackageInfo(settings.networkPackage);
       updateAll();
@@ -307,7 +308,7 @@ function renderSettings() {
     if (!packageInfo) return;
     const pkgs = defaults.network_tariffs.packages_low_voltage_upto_63A;
     if (!pkgs || !pkgId || !pkgs[pkgId]) {
-      packageInfo.textContent = '';
+      packageInfo.textContent = 'Pole valitud — näidatakse ainult börsihinda';
       return;
     }
     const p = pkgs[pkgId];
@@ -316,17 +317,6 @@ function renderSettings() {
     const flat = p.energy_cents_per_kwh.excl_vat.FLAT !== undefined ? `${p.energy_cents_per_kwh.excl_vat.FLAT} s/kWh (flat)` : '';
     packageInfo.textContent = `${periods} ${dayPrice}${flat ? (dayPrice ? ' • ' : '') + flat : ''}`;
   }
-
-    const unit = document.createElement('span');
-    unit.className = 'unit';
-    unit.textContent = units[key];
-
-    inputGroup.appendChild(input);
-    inputGroup.appendChild(unit);
-    item.appendChild(label);
-    item.appendChild(inputGroup);
-    grid.appendChild(item);
-  });
 }
 
 // Fetch prices from API
@@ -582,12 +572,18 @@ function updateCurrentPrice() {
     const spotPrice = current.price;
     // Add VAT to spot price for display
     const spotPriceWithVat = spotPrice * (1 + settings.vatPercent / 100);
-    const total = getTotalPrice(spotPrice, new Date(current.timestamp));
 
-    elements.currentPrice.textContent = spotPriceWithVat.toFixed(2);
-    const pkgId = settings.networkPackage;
-    const pkgLabel = defaults.network_tariffs?.packages_low_voltage_upto_63A?.[pkgId]?.label || '';
-    elements.currentPriceTotal.textContent = `Koos tasudega: ${total.toFixed(2)} s/kWh${pkgLabel ? ' (' + pkgLabel + ')' : ''}`;
+    // If a network package is NOT selected, show only the market price (no combined total)
+    if (!settings.networkPackage) {
+      elements.currentPrice.textContent = spotPriceWithVat.toFixed(2);
+      elements.currentPriceTotal.textContent = '';
+    } else {
+      const total = getTotalPrice(spotPrice, new Date(current.timestamp));
+      elements.currentPrice.textContent = spotPriceWithVat.toFixed(2);
+      const pkgId = settings.networkPackage;
+      const pkgLabel = defaults.network_tariffs?.packages_low_voltage_upto_63A?.[pkgId]?.label || '';
+      elements.currentPriceTotal.textContent = `Koos tasudega: ${total.toFixed(2)} s/kWh${pkgLabel ? ' (' + pkgLabel + ')' : ''}`;
+    }
   } else {
     elements.currentPrice.textContent = '--';
     elements.currentPriceTotal.textContent = 'Koos tasudega: -- s/kWh';
