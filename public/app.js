@@ -924,7 +924,7 @@ function updateChart() {
       shownLabels.add(key);
       const span = document.createElement('span');
       span.className = 'chart-x-label';
-      span.textContent = selectedResolution === 15 ? `${hour.toString().padStart(2, '0')}:00` : hour.toString().padStart(2, '0');
+      span.textContent = hour;
       xAxis.appendChild(span);
     }
   }
