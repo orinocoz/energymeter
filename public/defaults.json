@@ -8,11 +8,11 @@
   },
   "dayHours": {
     "start": 7,
-    "end": 23
+    "end": 22
   },
   "labels": {
-    "transferDay": "Day transfer fee (07:00-23:00)",
-    "transferNight": "Night transfer fee (23:00-07:00)",
+    "transferDay": "Day transfer fee (07:00-22:00)",
+    "transferNight": "Night transfer fee (22:00-07:00)",
     "renewableSurcharge": "Renewable energy surcharge",
     "exciseTax": "Electricity excise tax",
     "vatPercent": "VAT"
@@ -23,5 +23,145 @@
     "renewableSurcharge": "cents/kWh",
     "exciseTax": "cents/kWh",
     "vatPercent": "%"
+  },
+  "network_tariffs": {
+    "schema": "ee.elektrilevi.vorguteenuse_hinnakiri.v1",
+    "meta": {
+      "provider": "Elektrilevi",
+      "effective_from": "2025-08-01",
+      "timezone": "Europe/Tallinn",
+      "currency": "EUR",
+      "source": {
+        "title": "Elektrilevi võrguteenuse hinnakiri (kehtib alates 1. august 2025)",
+        "citation": "turn0file0"
+      },
+      "billing_note": "Võrguteenuse arved koostatakse käibemaksuta hindade alusel; käibemaks lisandub arve kogusummale."
+    },
+    "time_rules": {
+      "day": {
+        "applies_when": "Mon-Fri AND NOT public_holiday",
+        "start": "07:00",
+        "end": "22:00"
+      },
+      "night": {
+        "applies_when": "(Mon-Fri AND NOT public_holiday AND time in [22:00,07:00)) OR (Sat OR Sun OR public_holiday)",
+        "note": "L, P ja riiklikul pühal on ööhind kogu ööpäev (kui paketis pole määratud teisiti)."
+      },
+      "peaks": {
+        "applies_to_packages": ["VORK5", "VMA5", "VKL5_AEG", "VKA5_AEG"],
+        "season": {
+          "winter": { "months": [11, 12, 1, 2, 3] },
+          "other": { "months": [4, 5, 6, 7, 8, 9, 10] }
+        },
+        "weekday_day_peak_windows_winter": [
+          { "start": "09:00", "end": "12:00" },
+          { "start": "16:00", "end": "20:00" }
+        ],
+        "rest_day_peak_windows_winter": [
+          { "start": "16:00", "end": "20:00" }
+        ]
+      }
+    },
+    "packages_low_voltage_upto_63A": {
+      "VORK1": {
+        "label": "Võrk 1",
+        "energy_cents_per_kwh": {
+          "excl_vat": { "FLAT": 7.72 },
+          "incl_vat": { "FLAT": 9.57 }
+        },
+        "monthly_fee_eur": {
+          "excl_vat": {
+            "APARTMENT": 2.12,
+            "FUSE_A": { "LE16": 3.86, "20": 4.55, "25": 5.22, "32": 6.16, "40": 7.23, "50": 8.57, "63": 10.31 }
+          },
+          "incl_vat": {
+            "APARTMENT": 2.63,
+            "FUSE_A": { "LE16": 4.79, "20": 5.64, "25": 6.47, "32": 7.64, "40": 8.97, "50": 10.63, "63": 12.78 }
+          }
+        },
+        "periods": ["FLAT"]
+      },
+      "VORK2": {
+        "label": "Võrk 2",
+        "energy_cents_per_kwh": {
+          "excl_vat": { "DAY": 6.07, "NIGHT": 3.51 },
+          "incl_vat": { "DAY": 7.53, "NIGHT": 4.35 }
+        },
+        "monthly_fee_eur": {
+          "excl_vat": {
+            "APARTMENT": 2.96,
+            "FUSE_A": { "LE16": 5.81, "20": 7.23, "25": 8.57, "32": 10.44, "40": 12.58, "50": 15.26, "63": 18.74 }
+          },
+          "incl_vat": {
+            "APARTMENT": 3.67,
+            "FUSE_A": { "LE16": 7.20, "20": 8.97, "25": 10.63, "32": 12.95, "40": 15.60, "50": 18.92, "63": 23.24 }
+          }
+        },
+        "periods": ["DAY", "NIGHT"]
+      },
+      "VORK4": {
+        "label": "Võrk 4",
+        "energy_cents_per_kwh": {
+          "excl_vat": { "DAY": 3.69, "NIGHT": 2.10 },
+          "incl_vat": { "DAY": 4.58, "NIGHT": 2.60 }
+        },
+        "monthly_fee_eur": {
+          "excl_vat": {
+            "APARTMENT": 7.18,
+            "FUSE_A": { "LE16": 15.92, "20": 19.53, "25": 23.70, "32": 29.54, "40": 36.21, "50": 44.55, "63": 55.39 }
+          },
+          "incl_vat": {
+            "APARTMENT": 8.90,
+            "FUSE_A": { "LE16": 19.74, "20": 24.22, "25": 29.39, "32": 36.63, "40": 44.90, "50": 55.24, "63": 68.68 }
+          }
+        },
+        "periods": ["DAY", "NIGHT"]
+      },
+      "VORK5": {
+        "label": "Võrk 5",
+        "energy_cents_per_kwh": {
+          "excl_vat": { "DAY": 5.29, "DAY_PEAK": 8.18, "NIGHT": 3.03, "REST_PEAK": 4.74 },
+          "incl_vat": { "DAY": 6.56, "DAY_PEAK": 10.14, "NIGHT": 3.76, "REST_PEAK": 5.88 }
+        },
+        "monthly_fee_eur": {
+          "excl_vat": {
+            "APARTMENT": 3.23,
+            "FUSE_A": { "LE16": 6.33, "20": 7.88, "25": 9.34, "32": 11.38, "40": 13.71, "50": 16.63, "63": 20.43 }
+          },
+          "incl_vat": {
+            "APARTMENT": 4.01,
+            "FUSE_A": { "LE16": 7.85, "20": 9.77, "25": 11.58, "32": 14.11, "40": 17.00, "50": 20.62, "63": 25.33 }
+          }
+        },
+        "periods": ["DAY", "DAY_PEAK", "NIGHT", "REST_PEAK"]
+      }
+    },
+    "national_fees_and_taxes_cents_per_kwh": {
+      "renewable_energy_fee": { "excl_vat": 0.84, "incl_vat": 1.04 },
+      "electricity_excise": { "excl_vat": 0.21, "incl_vat": 0.26 },
+      "security_of_supply_fee": {
+        "effective_from": "2026-01-01",
+        "excl_vat": 0.758,
+        "incl_vat": 0.94
+      }
+    },
+    "estonia_public_holidays": {
+      "note": "PDF kasutab terminit 'riiklik püha' (ajad lk 1). Kuupäevad tuleb programmis määrata kalendri reeglitega.",
+      "rules": [
+        { "id": "NEW_YEAR", "type": "fixed", "month": 1, "day": 1 },
+        { "id": "INDEPENDENCE_DAY", "type": "fixed", "month": 2, "day": 24 },
+        { "id": "GOOD_FRIDAY", "type": "easter_offset", "offset_days": -2 },
+        { "id": "EASTER_SUNDAY", "type": "easter_offset", "offset_days": 0 },
+        { "id": "SPRING_DAY", "type": "fixed", "month": 5, "day": 1 },
+        { "id": "PENTECOST", "type": "easter_offset", "offset_days": 49 },
+        { "id": "VICTORY_DAY", "type": "fixed", "month": 6, "day": 23 },
+        { "id": "MIDSUMMER_DAY", "type": "fixed", "month": 6, "day": 24 },
+        { "id": "RESTORATION_OF_INDEPENDENCE", "type": "fixed", "month": 8, "day": 20 },
+        { "id": "CHRISTMAS_EVE", "type": "fixed", "month": 12, "day": 24 },
+        { "id": "CHRISTMAS_DAY", "type": "fixed", "month": 12, "day": 25 },
+        { "id": "BOXING_DAY", "type": "fixed", "month": 12, "day": 26 }
+      ],
+      "implementation_hint": "Lihtsaim on kasutada valmis pühadekalendrit (nt date-holidays / python holidays) või realiseerida gregooriuse ülestõusmispüha arvutus."
+    }
   }
 }

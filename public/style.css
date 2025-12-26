@@ -237,6 +237,26 @@ section {
   color: white;
 }
 
+/* Package selector */
+.package-select .setting-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+#networkPackage {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 2px solid var(--gray-200);
+  background: white;
+  font-weight: 600;
+}
+
+.package-info {
+  font-size: 0.85rem;
+  color: var(--gray-700);
+}
+
 /* Chart */
 .chart-section {
   padding: 20px;

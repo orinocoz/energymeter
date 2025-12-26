@@ -29,6 +29,8 @@ const elements = {
   costOptimal: document.getElementById('costOptimal'),
   savings: document.getElementById('savings'),
   settingsGrid: document.getElementById('settingsGrid'),
+  networkPackage: document.getElementById('networkPackage'),
+  packageInfo: document.getElementById('packageInfo'),
   resetSettings: document.getElementById('resetSettings'),
   lastUpdated: document.getElementById('lastUpdated'),
   resolutionButtons: document.getElementById('resolutionButtons')
@@ -173,6 +175,7 @@ async function loadDefaults() {
   try {
     const response = await fetch('/defaults.json');
     defaults = await response.json();
+    console.log('Defaults loaded:', !!defaults.network_tariffs);
   } catch (error) {
     console.error('Vaikeväärtuste laadimine ebaõnnestus:', error);
     defaults = {
@@ -197,6 +200,9 @@ function loadSettings() {
     settings = JSON.parse(saved);
   } else {
     settings = { ...defaults.fees };
+    // default network package selection (prefer VORK2 if available)
+    const pkgs = defaults.network_tariffs && defaults.network_tariffs.packages_low_voltage_upto_63A ? Object.keys(defaults.network_tariffs.packages_low_voltage_upto_63A) : [];
+    settings.networkPackage = pkgs.includes('VORK2') ? 'VORK2' : (pkgs[0] || null);
   }
 }
 
@@ -208,6 +214,8 @@ function saveSettings() {
 // Reset settings to defaults
 function resetSettings() {
   settings = { ...defaults.fees };
+  const pkgs = defaults.network_tariffs && defaults.network_tariffs.packages_low_voltage_upto_63A ? Object.keys(defaults.network_tariffs.packages_low_voltage_upto_63A) : [];
+  settings.networkPackage = pkgs.includes('VORK2') ? 'VORK2' : (pkgs[0] || null);
   saveSettings();
   renderSettings();
   updateAll();
@@ -217,6 +225,9 @@ function resetSettings() {
 function renderSettings() {
   const grid = elements.settingsGrid;
   grid.innerHTML = '';
+
+  // If a network package is selected, apply its default fees to the settings so inputs show package values
+  applyPackageToSettings(settings.networkPackage);
 
   const labels = {
     transferDay: 'Päevane võrgutasu (07-23)',
@@ -251,23 +262,132 @@ function renderSettings() {
     input.type = 'number';
     input.id = `setting-${key}`;
     input.step = '0.01';
-    input.value = settings[key];
+    // If the setting is null/undefined, leave input blank
+    input.value = (settings[key] === null || settings[key] === undefined) ? '' : settings[key];
     input.addEventListener('change', (e) => {
-      settings[key] = parseFloat(e.target.value) || 0;
+      // Empty input -> clear setting (do not interpret as zero)
+      if (e.target.value === '' || e.target.value === null) {
+        settings[key] = null;
+      } else {
+        settings[key] = parseFloat(e.target.value) || 0;
+      }
       saveSettings();
       updateAll();
     });
+
+    item.appendChild(label);
+    inputGroup.appendChild(input);
 
     const unit = document.createElement('span');
     unit.className = 'unit';
     unit.textContent = units[key];
 
-    inputGroup.appendChild(input);
     inputGroup.appendChild(unit);
-    item.appendChild(label);
     item.appendChild(inputGroup);
     grid.appendChild(item);
   });
+
+  // Populate network package selector
+  const networkSelect = document.getElementById('networkPackage');
+  const packageInfo = document.getElementById('packageInfo');
+  if (networkSelect) {
+    // Always include an explicit empty option (no package selected)
+    networkSelect.innerHTML = '<option value="">Pole valitud</option>';
+
+    const pkgs = defaults.network_tariffs && defaults.network_tariffs.packages_low_voltage_upto_63A ? defaults.network_tariffs.packages_low_voltage_upto_63A : null;
+    console.log('renderSettings: network packages available?', !!pkgs);
+    if (pkgs) {
+      console.log('renderSettings: packages', Object.keys(pkgs));
+      Object.keys(pkgs).forEach(key => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = `${key} — ${pkgs[key].label}`;
+        networkSelect.appendChild(opt);
+      });
+
+      // If a saved package is no longer present, clear it
+      if (settings.networkPackage && !pkgs[settings.networkPackage]) {
+        console.log('Saved networkPackage no longer present, clearing');
+        settings.networkPackage = null;
+        saveSettings();
+      }
+    }
+
+    // Set current value (allow empty)
+    networkSelect.value = (settings.networkPackage === undefined || settings.networkPackage === null) ? '' : settings.networkPackage;
+    renderPackageInfo(networkSelect.value);
+
+    networkSelect.addEventListener('change', (e) => {
+      settings.networkPackage = e.target.value || null; // store null when unselected
+      // Apply package to settings fields (transferDay/Night, national fees)
+      applyPackageToSettings(settings.networkPackage);
+      saveSettings();
+      renderPackageInfo(settings.networkPackage);
+      // Recalculate display prices (chart/stats depend on package) and update all
+      calculateDisplayPrices();
+      updateAll();
+      // Update DOM input values to reflect applied package
+      const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'exciseTax', 'vatPercent'];
+      feeKeys.forEach(k => {
+        const el = document.getElementById('setting-' + k);
+        if (el) el.value = settings[k];
+      });
+    });
+  }
+
+  // Helper to show package info
+  function renderPackageInfo(pkgId) {
+    if (!packageInfo) return;
+    const pkgs = defaults.network_tariffs?.packages_low_voltage_upto_63A;
+    if (!pkgs || !pkgId || !pkgs[pkgId]) {
+      packageInfo.textContent = 'Pole valitud — näidatakse ainult börsihinda';
+      return;
+    }
+    const p = pkgs[pkgId];
+    const periods = p.periods.join(', ');
+    const dayPrice = p.energy_cents_per_kwh.excl_vat.DAY !== undefined ? `${p.energy_cents_per_kwh.excl_vat.DAY} s/kWh (päev)` : '';
+    const flat = p.energy_cents_per_kwh.excl_vat.FLAT !== undefined ? `${p.energy_cents_per_kwh.excl_vat.FLAT} s/kWh (flat)` : '';
+    packageInfo.textContent = `${periods} ${dayPrice}${flat ? (dayPrice ? ' • ' : '') + flat : ''}`;
+    // Note: chart and stats reflect total price (võrgutasu + riigitasud + KM) when a package is selected
+    const note = document.createElement('div');
+    note.className = 'package-note';
+    note.textContent = 'Diagramm ja statistika näitavad nüüd kogu hinda koos võrgutasu ja maksudega.';
+    // remove any old note
+    const old = packageInfo.querySelector('.package-note');
+    if (old) old.remove();
+    packageInfo.appendChild(note);
+  }
+
+  // Apply package to settings values (update settings.* fields but do not persist automatically)
+  function applyPackageToSettings(pkgId) {
+    // If none selected, clear settings so inputs are empty and fees are not applied
+    if (!pkgId) {
+      settings.transferDay = null;
+      settings.transferNight = null;
+      settings.renewableSurcharge = null;
+      settings.exciseTax = null;
+      settings.vatPercent = null;
+      return;
+    }
+
+    const pkgs = defaults.network_tariffs?.packages_low_voltage_upto_63A || {};
+    const pkg = pkgs[pkgId];
+    if (!pkg) return;
+
+    // Energy rates in cents/kWh (excl VAT)
+    const e = pkg.energy_cents_per_kwh?.excl_vat || {};
+    // For day/night fields, prefer DAY/NIGHT, fallback to FLAT if present
+    settings.transferDay = (e.DAY !== undefined) ? e.DAY : (e.FLAT !== undefined ? e.FLAT : settings.transferDay);
+    settings.transferNight = (e.NIGHT !== undefined) ? e.NIGHT : (e.FLAT !== undefined ? e.FLAT : settings.transferNight);
+
+    // National fees from network_tariffs section
+    const national = defaults.network_tariffs?.national_fees_and_taxes_cents_per_kwh || {};
+    settings.renewableSurcharge = national.renewable_energy_fee?.excl_vat ?? settings.renewableSurcharge;
+    settings.exciseTax = national.electricity_excise?.excl_vat ?? settings.exciseTax;
+
+    // Keep VAT as configured in defaults.fees
+    settings.vatPercent = defaults.fees?.vatPercent ?? settings.vatPercent;
+  }
 }
 
 // Fetch prices from API
@@ -286,19 +406,35 @@ async function fetchPrices() {
     // Calculate display prices based on selected resolution
     calculateDisplayPrices();
     updateAll();
+
+    console.log('Prices loaded', pricesData.length, 'slots');
   } catch (error) {
     console.error('Hindade laadimine ebaõnnestus:', error);
     elements.currentPrice.textContent = 'Viga';
   }
 }
 
+// Return the displayed price (cents/kWh) for a slot
+// If a package is selected, return the total (incl. network fees, national fees and VAT).
+// If no package is selected, return the raw spot price (no VAT, no extra fees) as requested.
+function getDisplayedPriceForSlot(spotPrice, timestamp) {
+  if (settings.networkPackage) {
+    return getTotalPrice(spotPrice, new Date(timestamp));
+  }
+  return spotPrice;
+}
+
 // Calculate display prices based on resolution (aggregate 15-min to 1h if needed)
 function calculateDisplayPrices() {
   if (selectedResolution === 15) {
-    // Use raw 15-minute data
-    displayPrices = pricesData;
+    // Use raw 15-minute data, but attach a displayPrice field (spot or total depending on package)
+    displayPrices = pricesData.map(p => ({
+      timestamp: p.timestamp,
+      price: p.price,
+      displayPrice: getDisplayedPriceForSlot(p.price, p.timestamp)
+    }));
   } else {
-    // Aggregate to hourly: group by hour and average
+    // Aggregate to hourly: group by hour and average both spot and display prices
     const hourlyMap = new Map();
 
     pricesData.forEach(p => {
@@ -308,15 +444,18 @@ function calculateDisplayPrices() {
       const hourKey = date.toISOString();
 
       if (!hourlyMap.has(hourKey)) {
-        hourlyMap.set(hourKey, { prices: [], timestamp: hourKey });
+        hourlyMap.set(hourKey, { spotPrices: [], displayPrices: [], timestamp: hourKey });
       }
-      hourlyMap.get(hourKey).prices.push(p.price);
+      const bucket = hourlyMap.get(hourKey);
+      bucket.spotPrices.push(p.price);
+      bucket.displayPrices.push(getDisplayedPriceForSlot(p.price, p.timestamp));
     });
 
     // Calculate average for each hour
     displayPrices = Array.from(hourlyMap.values()).map(h => ({
       timestamp: h.timestamp,
-      price: h.prices.reduce((a, b) => a + b, 0) / h.prices.length
+      price: h.spotPrices.reduce((a, b) => a + b, 0) / h.spotPrices.length,
+      displayPrice: h.displayPrices.reduce((a, b) => a + b, 0) / h.displayPrices.length
     }));
 
     // Sort by timestamp
@@ -333,18 +472,167 @@ function updateAll() {
   updateCostCalculator();
 }
 
-// Check if hour is day tariff
-function isDayHour(date) {
-  const hour = date.getHours();
-  return hour >= defaults.dayHours.start && hour < defaults.dayHours.end;
+// --- Holiday & time rules helpers ---
+function parseTimeToMinutes(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + (m || 0);
 }
 
-// Calculate total price with fees
+function timeInRange(date, startHHMM, endHHMM) {
+  const mins = date.getHours() * 60 + date.getMinutes();
+  const start = parseTimeToMinutes(startHHMM);
+  const end = parseTimeToMinutes(endHHMM);
+  if (start <= end) {
+    return mins >= start && mins < end;
+  }
+  // Overnight range (e.g., 22:00 - 07:00)
+  return mins >= start || mins < end;
+}
+
+// Compute Easter Sunday (Gregorian algorithm)
+function easterSunday(year) {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+const holidayCache = {};
+function getHolidaysForYear(year) {
+  if (holidayCache[year]) return holidayCache[year];
+  const holidays = new Set();
+  const rules = defaults.network_tariffs?.estonia_public_holidays?.rules || [];
+  rules.forEach(r => {
+    if (r.type === 'fixed') {
+      const d = new Date(year, r.month - 1, r.day);
+      holidays.add(d.toDateString());
+    } else if (r.type === 'easter_offset') {
+      const easter = easterSunday(year);
+      const d = new Date(easter);
+      d.setDate(d.getDate() + (r.offset_days || 0));
+      holidays.add(d.toDateString());
+    }
+  });
+  holidayCache[year] = holidays;
+  return holidays;
+}
+
+function isPublicHoliday(date) {
+  const y = date.getFullYear();
+  const set = getHolidaysForYear(y);
+  return set.has(new Date(date.getFullYear(), date.getMonth(), date.getDate()).toDateString());
+}
+
+function isWeekend(date) {
+  const dow = date.getDay();
+  return dow === 0 || dow === 6;
+}
+
+function isRestDay(date) {
+  return isWeekend(date) || isPublicHoliday(date);
+}
+
+// Determine the base DAY/NIGHT according to time_rules
+function baseDayRuleMatches(date) {
+  const dayRule = defaults.network_tariffs?.time_rules?.day;
+  if (!dayRule) {
+    // fallback to previous defaults
+    return date.getHours() >= defaults.dayHours.start && date.getHours() < defaults.dayHours.end;
+  }
+  const dow = date.getDay(); // 0 Sun ... 6 Sat
+  const isWeekday = dow >= 1 && dow <= 5;
+  if (!isWeekday) return false;
+  if (isPublicHoliday(date)) return false;
+  return timeInRange(date, dayRule.start, dayRule.end);
+}
+
+// Determine package-specific period (DAY, NIGHT, DAY_PEAK, REST_PEAK, FLAT)
+function getPackagePeriod(pkgId, date) {
+  const pkgs = defaults.network_tariffs?.packages_low_voltage_upto_63A || {};
+  const pkg = pkgs[pkgId];
+  // fallback
+  if (!pkg) {
+    return baseDayRuleMatches(date) ? 'DAY' : 'NIGHT';
+  }
+
+  // If package has FLAT only
+  if (pkg.periods && pkg.periods.includes('FLAT')) return 'FLAT';
+
+  // Peaks logic
+  const peaks = defaults.network_tariffs?.time_rules?.peaks;
+  const month = date.getMonth() + 1; // 1-12
+  const winterMonths = peaks?.season?.winter?.months || [11,12,1,2,3];
+  const inWinter = winterMonths.includes(month);
+
+  // REST_PEAK check: if rest day and window matches
+  if (pkg.periods.includes('REST_PEAK') && inWinter && isRestDay(date)) {
+    const windows = peaks?.rest_day_peak_windows_winter || [];
+    for (const w of windows) {
+      if (timeInRange(date, w.start, w.end)) return 'REST_PEAK';
+    }
+  }
+
+  // DAY_PEAK check: if weekday and window matches
+  if (pkg.periods.includes('DAY_PEAK') && inWinter && !isRestDay(date)) {
+    const windows = peaks?.weekday_day_peak_windows_winter || [];
+    for (const w of windows) {
+      if (timeInRange(date, w.start, w.end)) return 'DAY_PEAK';
+    }
+  }
+
+  // Day or night fallback
+  return baseDayRuleMatches(date) ? 'DAY' : 'NIGHT';
+}
+
+function getNetworkEnergyPrice(pkgId, date) {
+  // returns cents per kWh (excl VAT)
+  const pkgs = defaults.network_tariffs?.packages_low_voltage_upto_63A || {};
+  const pkg = pkgs[pkgId];
+  if (pkg) {
+    const period = getPackagePeriod(pkgId, date);
+    const price = pkg.energy_cents_per_kwh?.excl_vat?.[period];
+    if (price !== undefined) return price;
+    // Try DAY/NIGHT fallback
+    if (period !== 'FLAT') {
+      const tryPeriod = period === 'DAY_PEAK' || period === 'REST_PEAK' ? 'DAY' : period;
+      const fallback = pkg.energy_cents_per_kwh?.excl_vat?.[tryPeriod];
+      if (fallback !== undefined) return fallback;
+    }
+  }
+  // Fallback to old transferDay/transferNight settings
+  return baseDayRuleMatches(date) ? settings.transferDay : settings.transferNight;
+}
+
+// Calculate total price with fees (spotPrice and network fees + national fees), VAT applied at the end
 function getTotalPrice(spotPrice, date) {
-  const isDay = isDayHour(date);
-  const transferFee = isDay ? settings.transferDay : settings.transferNight;
-  const subtotal = spotPrice + transferFee + settings.renewableSurcharge + settings.exciseTax;
-  const total = subtotal * (1 + settings.vatPercent / 100);
+  // If no package is selected, do not apply network or national fees or VAT — return raw spotPrice
+  if (!settings.networkPackage) return spotPrice;
+
+  const networkFee = getNetworkEnergyPrice(settings.networkPackage, date);
+  const national = defaults.network_tariffs?.national_fees_and_taxes_cents_per_kwh || {};
+  const renewable = national.renewable_energy_fee?.excl_vat ?? settings.renewableSurcharge ?? 0;
+  const excise = national.electricity_excise?.excl_vat ?? settings.exciseTax ?? 0;
+
+  let securityFee = 0;
+  const sec = national.security_of_supply_fee;
+  if (sec && sec.effective_from) {
+    const eff = new Date(sec.effective_from + 'T00:00:00Z');
+    if (date >= eff) securityFee = sec.excl_vat || 0;
+  }
+
+  const subtotal = spotPrice + networkFee + renewable + excise + securityFee;
+  const total = subtotal * (1 + (settings.vatPercent || defaults.fees?.vatPercent || 0) / 100);
   return total;
 }
 
@@ -375,12 +663,20 @@ function updateCurrentPrice() {
 
   if (current) {
     const spotPrice = current.price;
-    // Add VAT to spot price for display
-    const spotPriceWithVat = spotPrice * (1 + settings.vatPercent / 100);
-    const total = getTotalPrice(spotPrice, new Date(current.timestamp));
+    const vat = (settings.vatPercent !== undefined && settings.vatPercent !== null) ? settings.vatPercent : defaults.fees?.vatPercent || 0;
+    const spotDisplay = !settings.networkPackage ? spotPrice : spotPrice * (1 + vat / 100);
 
-    elements.currentPrice.textContent = spotPriceWithVat.toFixed(2);
-    elements.currentPriceTotal.textContent = `Koos tasudega: ${total.toFixed(2)} s/kWh`;
+    // If a network package is NOT selected, show only the market price (no combined total)
+    if (!settings.networkPackage) {
+      elements.currentPrice.textContent = spotDisplay.toFixed(2);
+      elements.currentPriceTotal.textContent = '';
+    } else {
+      const total = getTotalPrice(spotPrice, new Date(current.timestamp));
+      elements.currentPrice.textContent = spotDisplay.toFixed(2);
+      const pkgId = settings.networkPackage;
+      const pkgLabel = defaults.network_tariffs?.packages_low_voltage_upto_63A?.[pkgId]?.label || '';
+      elements.currentPriceTotal.textContent = `Koos tasudega: ${total.toFixed(2)} s/kWh${pkgLabel ? ' (' + pkgLabel + ')' : ''}`;
+    }
   } else {
     elements.currentPrice.textContent = '--';
     elements.currentPriceTotal.textContent = 'Koos tasudega: -- s/kWh';
@@ -394,9 +690,10 @@ function updateStats() {
   const todayPrices = displayPrices.filter(p => new Date(p.timestamp).toDateString() === todayStr);
 
   if (todayPrices.length > 0) {
-    const prices = todayPrices.map(p => p.price);
-    const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
-    const max = Math.max(...prices);
+    // Use displayPrice (includes package & VAT if selected) for stats
+    const dPrices = todayPrices.map(p => (p.displayPrice !== undefined ? p.displayPrice : getDisplayedPriceForSlot(p.price, p.timestamp)));
+    const avg = dPrices.reduce((a, b) => a + b, 0) / dPrices.length;
+    const max = Math.max(...dPrices);
 
     elements.avgPrice.textContent = `${avg.toFixed(2)} s/kWh`;
     elements.maxPrice.textContent = `${max.toFixed(2)} s/kWh`;
@@ -428,8 +725,8 @@ function updateChart() {
 
   if (futurePrices.length === 0) return;
 
-  // Get price range for scaling
-  const allPrices = futurePrices.map(p => p.price);
+  // Get price range for scaling (use displayPrice so chart reflects package selection)
+  const allPrices = futurePrices.map(p => (p.displayPrice !== undefined ? p.displayPrice : getDisplayedPriceForSlot(p.price, p.timestamp)));
   const maxPrice = Math.max(...allPrices, 1);
   const minPrice = Math.min(...allPrices);
   const hasNegative = minPrice < 0;
@@ -483,7 +780,7 @@ function updateChart() {
       shownLabels.add(key);
       const span = document.createElement('span');
       span.className = 'chart-x-label';
-      span.textContent = hour.toString().padStart(2, '0');
+      span.textContent = selectedResolution === 15 ? `${hour.toString().padStart(2, '0')}:00` : hour.toString().padStart(2, '0');
       xAxis.appendChild(span);
     }
   }
@@ -547,11 +844,12 @@ function updateChart() {
   });
   ctx.stroke();
 
-  // Calculate points
+  // Calculate points (use displayPrice for plotting so chart reflects package selection/VAT)
   const points = futurePrices.map((p, i) => {
     const x = padding.left + (i / (futurePrices.length - 1)) * chartWidth;
-    const y = padding.top + ((paddedMax - p.price) / priceRange) * chartHeight;
-    return { x, y, price: p.price, timestamp: p.timestamp, isBest: bestIndices.has(i) };
+    const dp = (p.displayPrice !== undefined) ? p.displayPrice : getDisplayedPriceForSlot(p.price, p.timestamp);
+    const y = padding.top + ((paddedMax - dp) / priceRange) * chartHeight;
+    return { x, y, price: p.price, displayPrice: dp, timestamp: p.timestamp, isBest: bestIndices.has(i) };
   });
 
   // Draw best selection as green vertical bars/columns spanning full height (supports multiple non-consecutive groups)
@@ -707,15 +1005,16 @@ function updateChart() {
         const hour = priceDate.getHours();
         const minutes = priceDate.getMinutes();
         const price = closestPoint.price;
-        const total = getTotalPrice(price, priceDate);
+        // Show raw market price when no package selected
+        const spotDisplay = (!settings.networkPackage) ? price : (price * (1 + ((settings.vatPercent !== undefined) ? settings.vatPercent : (defaults.fees?.vatPercent || 0)) / 100));
+        const total = (closestPoint.displayPrice !== undefined) ? closestPoint.displayPrice : getTotalPrice(price, priceDate);
 
         const tooltip = document.createElement('div');
         tooltip.id = 'chartTooltip';
         tooltip.className = 'chart-tooltip';
         tooltip.innerHTML = `
           <strong>${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}</strong><br>
-          Börs: ${price.toFixed(2)} s/kWh<br>
-          Kokku: ${total.toFixed(2)} s/kWh
+          Börs: ${spotDisplay.toFixed(2)} s/kWh${settings.networkPackage ? ('<br>Kokku: ' + total.toFixed(2) + ' s/kWh') : ''}
         `;
 
         // Position tooltip - keep within bounds
@@ -799,8 +1098,33 @@ function findBestWindowFromPrices(prices, duration) {
 function findCheapestNonConsecutiveFromPrices(prices, durationHours) {
   if (!prices || prices.length === 0 || durationHours < 1) return null;
 
-  // For 15-min resolution we group into hours
-  const slotsPerHour = selectedResolution === 15 ? 4 : 1;
+  // If user views 15-min resolution, select individual 15-min slots (not hourly blocks)
+  if (selectedResolution === 15) {
+    const slotsNeeded = durationHours * 4; // 4 slots per hour
+    // Build list of slots with their total price
+    const slotList = prices.map((p, i) => ({ index: i, total: getTotalPrice(p.price, new Date(p.timestamp)), ts: new Date(p.timestamp) }));
+
+    if (slotList.length < slotsNeeded) return null;
+
+    // Sort by total ascending and take cheapest slotsNeeded
+    slotList.sort((a, b) => a.total - b.total);
+    const chosen = slotList.slice(0, slotsNeeded);
+
+    // Build set of indices and compute average
+    const selectedIndices = new Set(chosen.map(c => c.index));
+    const overallAvg = chosen.reduce((a, b) => a + b.total, 0) / chosen.length;
+
+    // Sort chosen timestamps chronologically for display
+    const chosenTimes = chosen.map(c => c.ts).sort((a, b) => a - b);
+
+    return {
+      indices: selectedIndices,
+      hours: chosenTimes,
+      avgPrice: overallAvg
+    };
+  }
+
+  // Fallback: original hourly grouping behavior for 1h resolution
   const hoursNeeded = durationHours;
 
   // Build hour groups: key = ISO hour start, value = { indices: [], totalPrices: [], hourStart }
