@@ -33,8 +33,39 @@ const elements = {
   packageInfo: document.getElementById('packageInfo'),
   resetSettings: document.getElementById('resetSettings'),
   lastUpdated: document.getElementById('lastUpdated'),
-  resolutionButtons: document.getElementById('resolutionButtons')
+  resolutionButtons: document.getElementById('resolutionButtons'),
+  chartToggleFull: document.getElementById('chartToggleFull'),
+  durationSpinUp: document.getElementById('durationSpinUp'),
+  durationSpinDown: document.getElementById('durationSpinDown')
 };
+
+// Parse duration input (accepts 'H:MM' or decimal like '1.5' or '1,5') and normalize to nearest 0.25 hours
+function parseDurationInput(raw) {
+  if (raw === '' || raw === null || typeof raw === 'undefined') return null;
+  const s = String(raw).trim();
+  // H:MM format
+  if (s.includes(':')) {
+    const [hStr, mStr] = s.split(':');
+    const h = parseInt(hStr, 10);
+    const m = parseInt(mStr || '0', 10);
+    if (isNaN(h) || isNaN(m)) return NaN;
+    const total = h + (m / 60);
+    return Math.round(total * 4) / 4;
+  }
+  // Decimal format (accept comma)
+  const normalizedStr = s.replace(',', '.');
+  const v = parseFloat(normalizedStr);
+  if (isNaN(v)) return NaN;
+  return Math.round(v * 4) / 4;
+}
+
+// Format decimal hours to H:MM string (minutes will be multiples of 15)
+function formatHoursToInputString(hours) {
+  const totalMins = Math.round(hours * 60);
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
+} 
 
 // Initialize
 async function init() {
@@ -49,6 +80,29 @@ async function init() {
       document.querySelectorAll('.resolution-btn').forEach(btn => btn.classList.remove('active'));
       e.target.classList.add('active');
       selectedResolution = parseInt(e.target.dataset.resolution);
+
+      // When resolution changes, update custom input step/format and round existing value to the nearest step
+      const step = (selectedResolution === 15) ? 0.25 : 1;
+      const raw = elements.durationCustom && elements.durationCustom.value ? elements.durationCustom.value : '';
+      const parsed = parseDurationInput(raw);
+      if (!isNaN(parsed) && parsed !== null) {
+        let normalized = Math.round(parsed / step) * step;
+        if (selectedResolution === 60 && normalized < 1) normalized = 1; // enforce min 1h for 1h resolution
+        selectedDuration = normalized;
+        if (elements.durationCustom) elements.durationCustom.value = formatHoursToInputString(normalized);
+      } else if (selectedDuration) {
+        let normalized = Math.round(selectedDuration / step) * step;
+        if (selectedResolution === 60 && normalized < 1) normalized = 1;
+        selectedDuration = normalized;
+        if (elements.durationCustom) elements.durationCustom.value = formatHoursToInputString(normalized);
+      }
+
+      // Update spinner titles if present
+      if (elements.durationSpinUp && elements.durationSpinDown) {
+        elements.durationSpinUp.title = selectedResolution === 15 ? 'Suurenda 15 min' : 'Suurenda 1 h';
+        elements.durationSpinDown.title = selectedResolution === 15 ? 'Vähenda 15 min' : 'Vähenda 1 h';
+      }
+
       // Recalculate display prices and update everything
       calculateDisplayPrices();
       updateAll();
@@ -61,9 +115,9 @@ async function init() {
       document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
       e.target.classList.add('active');
       selectedDuration = parseInt(e.target.dataset.hours);
-      // Sync custom input
+      // Sync custom input (show as hh:mm)
       if (elements.durationCustom) {
-        elements.durationCustom.value = selectedDuration;
+        elements.durationCustom.value = formatHoursToInputString(selectedDuration);
         elements.durationCustom.classList.remove('invalid');
       }
       // Redraw chart with new duration selection
@@ -73,7 +127,7 @@ async function init() {
     }
   });
 
-  // Custom duration input handling (integer-only)
+  // Custom duration input handling (supports 0.25-step / 15 minutes)
   if (elements.durationCustom) {
     const sanitizeAndApply = () => {
       const raw = elements.durationCustom.value;
@@ -81,28 +135,30 @@ async function init() {
         // Clear selection (restore default button state if any)
         document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
         elements.durationCustom.classList.remove('invalid');
+        elements.durationCustom.value = '';
         updateChart();
         updateBestWindow();
         updateCostCalculator();
         return;
       }
 
-      // Parse integer only
-      const intVal = parseInt(raw, 10);
-      if (isNaN(intVal) || intVal < 1) {
+      // Parse input (accept hh:mm or decimal) and allow 0.25 (15min) increments
+      const normalized = parseDurationInput(raw);
+      if (isNaN(normalized) || normalized === null || normalized < 0.25) {
         elements.durationCustom.classList.add('invalid');
         return;
       }
 
-      // If user typed a non-integer like 2.5, normalize to integer
-      if (String(intVal) !== String(raw)) {
-        elements.durationCustom.value = intVal;
+      // If normalized differs from input, write formatted hh:mm into the input
+      const formatted = formatHoursToInputString(normalized);
+      if (elements.durationCustom.value !== formatted) {
+        elements.durationCustom.value = formatted;
       }
 
       elements.durationCustom.classList.remove('invalid');
 
       // Apply as selected duration and clear button active state
-      selectedDuration = intVal;
+      selectedDuration = normalized;
       document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
 
       updateChart();
@@ -122,27 +178,58 @@ async function init() {
     elements.durationCustom.addEventListener('blur', () => {
       // Final sanitize on blur
       const raw = elements.durationCustom.value;
-      const intVal = parseInt(raw, 10);
-      if (isNaN(intVal) || intVal < 1) {
+      const normalized = parseDurationInput(raw);
+      if (isNaN(normalized) || normalized === null) {
         // Keep blank if invalid
         elements.durationCustom.classList.remove('invalid');
         elements.durationCustom.value = '';
-        // Optionally reset to default 1h
-        // selectedDuration = 1;
-        // document.querySelector('.duration-btn[data-hours="1"]').classList.add('active');
         updateChart();
         updateBestWindow();
         updateCostCalculator();
         return;
       }
-      // Ensure normalized integer value is set
-      elements.durationCustom.value = intVal;
+      // If current resolution is 1h, require minimum 1h and round accordingly
+      if (selectedResolution === 60) {
+        let norm = Math.round(normalized);
+        if (norm < 1) norm = 1;
+        elements.durationCustom.value = formatHoursToInputString(norm);
+        selectedDuration = norm;
+      } else {
+        // Normalize and display as hh:mm to nearest 0.25
+        const norm = Math.round(normalized * 4) / 4;
+        const formatted = formatHoursToInputString(norm);
+        elements.durationCustom.value = formatted;
+        selectedDuration = norm;
+      }
+
       elements.durationCustom.classList.remove('invalid');
-      selectedDuration = intVal;
       updateChart();
       updateBestWindow();
       updateCostCalculator();
     });
+
+    // Inline spinner buttons for increments (respect current resolution)
+    if (elements.durationSpinUp && elements.durationSpinDown) {
+      const spin = (mult) => {
+        const step = (selectedResolution === 15) ? 0.25 : 1;
+        const raw = elements.durationCustom.value;
+        const parsed = parseDurationInput(raw);
+        let current = (isNaN(parsed) || parsed === null) ? (selectedDuration || step) : parsed;
+        current = Math.round((current + mult * step) * (1 / step)) / (1 / step);
+        if (selectedResolution === 60 && current < 1) current = 1;
+        if (current < (selectedResolution === 15 ? 0.25 : 1)) current = (selectedResolution === 15 ? 0.25 : 1);
+        const formatted = formatHoursToInputString(current);
+        elements.durationCustom.value = formatted;
+        elements.durationCustom.classList.remove('invalid');
+        selectedDuration = current;
+        updateChart();
+        updateBestWindow();
+        updateCostCalculator();
+      };
+
+      elements.durationSpinUp.addEventListener('click', (e) => { e.preventDefault(); spin(1); });
+      elements.durationSpinDown.addEventListener('click', (e) => { e.preventDefault(); spin(-1); });
+    }
   }
 
   // Duration mode (consecutive vs cheapest) listeners
@@ -160,8 +247,29 @@ async function init() {
     });
   }
 
+  // Chart fullscreen / expand toggle (expands chart area to screen width)
+  if (elements.chartToggleFull) {
+    let chartExpanded = false;
+    elements.chartToggleFull.addEventListener('click', () => {
+      chartExpanded = !chartExpanded;
+      document.body.classList.toggle('chart-expanded', chartExpanded);
+      // Use icons: ⤢ expand, ⤡ collapse
+      elements.chartToggleFull.innerHTML = chartExpanded ? '⤡' : '⤢';
+      elements.chartToggleFull.setAttribute('title', chartExpanded ? 'Vähenda graafikut' : 'Suurenda graafikut');
+      elements.chartToggleFull.setAttribute('aria-label', chartExpanded ? 'Vähenda graafikut' : 'Suurenda graafikut');
+      // Force redraw to pick up new sizes
+      updateChart();
+    });
+  }
+
   elements.kwhInput.addEventListener('input', updateCostCalculator);
   elements.resetSettings.addEventListener('click', resetSettings);
+
+  // Set initial spinner titles according to resolution
+  if (elements.durationSpinUp && elements.durationSpinDown) {
+    elements.durationSpinUp.title = selectedResolution === 15 ? 'Suurenda 15 min' : 'Suurenda 1 h';
+    elements.durationSpinDown.title = selectedResolution === 15 ? 'Vähenda 15 min' : 'Vähenda 1 h';
+  }
 
   // Update countdown every minute
   setInterval(updateCountdown, 60000);
@@ -1096,11 +1204,12 @@ function findBestWindowFromPrices(prices, duration) {
 
 // Find cheapest non-consecutive hours (returns indices set of slots and avg price)
 function findCheapestNonConsecutiveFromPrices(prices, durationHours) {
-  if (!prices || prices.length === 0 || durationHours < 1) return null;
+  // Allow durations down to 0.25 h (15 min) when using 15-min resolution
+  if (!prices || prices.length === 0 || durationHours < 0.25) return null;
 
   // If user views 15-min resolution, select individual 15-min slots (not hourly blocks)
   if (selectedResolution === 15) {
-    const slotsNeeded = durationHours * 4; // 4 slots per hour
+    const slotsNeeded = Math.round(durationHours * 4); // 4 slots per hour
     // Build list of slots with their total price
     const slotList = prices.map((p, i) => ({ index: i, total: getTotalPrice(p.price, new Date(p.timestamp)), ts: new Date(p.timestamp) }));
 

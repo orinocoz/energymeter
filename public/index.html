@@ -44,8 +44,14 @@
               <button class="duration-btn" data-hours="6">6h</button>
               <button class="duration-btn" data-hours="7">7h</button>
               <button class="duration-btn" data-hours="8">8h</button>
-              <!-- Custom hours input (number only, integers) -->
-              <input id="durationCustom" class="duration-custom" type="number" min="1" step="1" placeholder="Muu..." aria-label="Sisesta tunnid täisarvuna">
+              <!-- Custom hours input (accepts hh:mm or decimal, with inline spinner buttons for 15-min steps) -->
+              <div class="duration-custom-wrapper">
+                <input id="durationCustom" class="duration-custom" type="text" inputmode="decimal" placeholder="Muu (hh:mm või 0.25 samm)" aria-label="Sisesta tunnid (hh:mm või 0.25 samm)">
+                <div class="duration-spinners" aria-hidden="true">
+                  <button id="durationSpinUp" class="duration-spinner up" type="button" title="Suurenda 15 min">▲</button>
+                  <button id="durationSpinDown" class="duration-spinner down" type="button" title="Vähenda 15 min">▼</button>
+                </div>
+              </div>
             </div>
           </div>
           <div class="resolution-wrapper">
@@ -63,6 +69,7 @@
         <div class="chart-header">
           <span class="chart-date" id="chartDate">--</span>
           <span class="chart-unit">senti/kWh koos km</span>
+          <button id="chartToggleFull" class="btn-secondary chart-toggle" title="Suurenda graafik laiuseni">Suurenda</button>
         </div>
         <div class="chart-wrapper">
           <div class="chart-container">
