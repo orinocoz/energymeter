@@ -187,9 +187,12 @@ section {
   margin-top: 6px;
 }
 /* Custom duration input */
+.duration-custom-wrapper { position: relative; display: inline-block; }
+
 .duration-custom {
-  width: 84px;
-  padding: 8px 10px;
+  width: 108px;
+  padding: 8px 10px 8px 10px;
+  padding-right: 44px; /* space for spinners */
   border: 2px solid var(--gray-200);
   border-radius: var(--radius);
   font-size: 0.875rem;
@@ -197,6 +200,36 @@ section {
   color: var(--gray-700);
   outline: none;
   box-sizing: border-box;
+}
+
+.duration-spinners {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.duration-spinner {
+  width: 20px;
+  height: 14px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+  border: 1px solid var(--gray-200);
+  background: white;
+  color: var(--gray-600);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.duration-spinner:active {
+  background: var(--gray-50);
 }
 
 .duration-custom:focus {
@@ -244,7 +277,7 @@ section {
   align-items: center;
 }
 
-#networkPackage {
+#networkPackage, #networkPackageTop {
   padding: 8px 10px;
   border-radius: var(--radius);
   border: 2px solid var(--gray-200);
@@ -256,6 +289,13 @@ section {
   font-size: 0.85rem;
   color: var(--gray-700);
 }
+
+/* Top package selector styling */
+.package-top { margin-top: 8px; display: flex; justify-content: center; }
+.package-top-select { min-width: 220px; }
+
+/* Small note for inputs */
+/* Removed special excl-VAT note for security fee — fee is included in VAT calculation like others */
 
 /* Chart */
 .chart-section {
@@ -274,6 +314,34 @@ section {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--gray-700);
+}
+
+.chart-toggle {
+  padding: 6px 10px;
+  border: 2px solid var(--gray-200);
+  background: white;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chart-toggle:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Expanded chart view: widen only the chart section to full viewport width (keep original height) */
+body.chart-expanded .chart-section {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  z-index: 2000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+body.chart-expanded .chart-wrapper {
+  max-width: 100vw;
 }
 
 .chart-unit {

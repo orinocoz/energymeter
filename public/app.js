@@ -30,11 +30,43 @@ const elements = {
   savings: document.getElementById('savings'),
   settingsGrid: document.getElementById('settingsGrid'),
   networkPackage: document.getElementById('networkPackage'),
+  networkPackageTop: document.getElementById('networkPackageTop'),
   packageInfo: document.getElementById('packageInfo'),
   resetSettings: document.getElementById('resetSettings'),
   lastUpdated: document.getElementById('lastUpdated'),
-  resolutionButtons: document.getElementById('resolutionButtons')
+  resolutionButtons: document.getElementById('resolutionButtons'),
+  chartToggleFull: document.getElementById('chartToggleFull'),
+  durationSpinUp: document.getElementById('durationSpinUp'),
+  durationSpinDown: document.getElementById('durationSpinDown')
 };
+
+// Parse duration input (accepts 'H:MM' or decimal like '1.5' or '1,5') and normalize to nearest 0.25 hours
+function parseDurationInput(raw) {
+  if (raw === '' || raw === null || typeof raw === 'undefined') return null;
+  const s = String(raw).trim();
+  // H:MM format
+  if (s.includes(':')) {
+    const [hStr, mStr] = s.split(':');
+    const h = parseInt(hStr, 10);
+    const m = parseInt(mStr || '0', 10);
+    if (isNaN(h) || isNaN(m)) return NaN;
+    const total = h + (m / 60);
+    return Math.round(total * 4) / 4;
+  }
+  // Decimal format (accept comma)
+  const normalizedStr = s.replace(',', '.');
+  const v = parseFloat(normalizedStr);
+  if (isNaN(v)) return NaN;
+  return Math.round(v * 4) / 4;
+}
+
+// Format decimal hours to H:MM string (minutes will be multiples of 15)
+function formatHoursToInputString(hours) {
+  const totalMins = Math.round(hours * 60);
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
+} 
 
 // Initialize
 async function init() {
@@ -49,6 +81,29 @@ async function init() {
       document.querySelectorAll('.resolution-btn').forEach(btn => btn.classList.remove('active'));
       e.target.classList.add('active');
       selectedResolution = parseInt(e.target.dataset.resolution);
+
+      // When resolution changes, update custom input step/format and round existing value to the nearest step
+      const step = (selectedResolution === 15) ? 0.25 : 1;
+      const raw = elements.durationCustom && elements.durationCustom.value ? elements.durationCustom.value : '';
+      const parsed = parseDurationInput(raw);
+      if (!isNaN(parsed) && parsed !== null) {
+        let normalized = Math.round(parsed / step) * step;
+        if (selectedResolution === 60 && normalized < 1) normalized = 1; // enforce min 1h for 1h resolution
+        selectedDuration = normalized;
+        if (elements.durationCustom) elements.durationCustom.value = formatHoursToInputString(normalized);
+      } else if (selectedDuration) {
+        let normalized = Math.round(selectedDuration / step) * step;
+        if (selectedResolution === 60 && normalized < 1) normalized = 1;
+        selectedDuration = normalized;
+        if (elements.durationCustom) elements.durationCustom.value = formatHoursToInputString(normalized);
+      }
+
+      // Update spinner titles if present
+      if (elements.durationSpinUp && elements.durationSpinDown) {
+        elements.durationSpinUp.title = selectedResolution === 15 ? 'Suurenda 15 min' : 'Suurenda 1 h';
+        elements.durationSpinDown.title = selectedResolution === 15 ? 'Vähenda 15 min' : 'Vähenda 1 h';
+      }
+
       // Recalculate display prices and update everything
       calculateDisplayPrices();
       updateAll();
@@ -61,9 +116,9 @@ async function init() {
       document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
       e.target.classList.add('active');
       selectedDuration = parseInt(e.target.dataset.hours);
-      // Sync custom input
+      // Sync custom input (show as hh:mm)
       if (elements.durationCustom) {
-        elements.durationCustom.value = selectedDuration;
+        elements.durationCustom.value = formatHoursToInputString(selectedDuration);
         elements.durationCustom.classList.remove('invalid');
       }
       // Redraw chart with new duration selection
@@ -73,7 +128,7 @@ async function init() {
     }
   });
 
-  // Custom duration input handling (integer-only)
+  // Custom duration input handling (supports 0.25-step / 15 minutes)
   if (elements.durationCustom) {
     const sanitizeAndApply = () => {
       const raw = elements.durationCustom.value;
@@ -81,28 +136,30 @@ async function init() {
         // Clear selection (restore default button state if any)
         document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
         elements.durationCustom.classList.remove('invalid');
+        elements.durationCustom.value = '';
         updateChart();
         updateBestWindow();
         updateCostCalculator();
         return;
       }
 
-      // Parse integer only
-      const intVal = parseInt(raw, 10);
-      if (isNaN(intVal) || intVal < 1) {
+      // Parse input (accept hh:mm or decimal) and allow 0.25 (15min) increments
+      const normalized = parseDurationInput(raw);
+      if (isNaN(normalized) || normalized === null || normalized < 0.25) {
         elements.durationCustom.classList.add('invalid');
         return;
       }
 
-      // If user typed a non-integer like 2.5, normalize to integer
-      if (String(intVal) !== String(raw)) {
-        elements.durationCustom.value = intVal;
+      // If normalized differs from input, write formatted hh:mm into the input
+      const formatted = formatHoursToInputString(normalized);
+      if (elements.durationCustom.value !== formatted) {
+        elements.durationCustom.value = formatted;
       }
 
       elements.durationCustom.classList.remove('invalid');
 
       // Apply as selected duration and clear button active state
-      selectedDuration = intVal;
+      selectedDuration = normalized;
       document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
 
       updateChart();
@@ -122,27 +179,58 @@ async function init() {
     elements.durationCustom.addEventListener('blur', () => {
       // Final sanitize on blur
       const raw = elements.durationCustom.value;
-      const intVal = parseInt(raw, 10);
-      if (isNaN(intVal) || intVal < 1) {
+      const normalized = parseDurationInput(raw);
+      if (isNaN(normalized) || normalized === null) {
         // Keep blank if invalid
         elements.durationCustom.classList.remove('invalid');
         elements.durationCustom.value = '';
-        // Optionally reset to default 1h
-        // selectedDuration = 1;
-        // document.querySelector('.duration-btn[data-hours="1"]').classList.add('active');
         updateChart();
         updateBestWindow();
         updateCostCalculator();
         return;
       }
-      // Ensure normalized integer value is set
-      elements.durationCustom.value = intVal;
+      // If current resolution is 1h, require minimum 1h and round accordingly
+      if (selectedResolution === 60) {
+        let norm = Math.round(normalized);
+        if (norm < 1) norm = 1;
+        elements.durationCustom.value = formatHoursToInputString(norm);
+        selectedDuration = norm;
+      } else {
+        // Normalize and display as hh:mm to nearest 0.25
+        const norm = Math.round(normalized * 4) / 4;
+        const formatted = formatHoursToInputString(norm);
+        elements.durationCustom.value = formatted;
+        selectedDuration = norm;
+      }
+
       elements.durationCustom.classList.remove('invalid');
-      selectedDuration = intVal;
       updateChart();
       updateBestWindow();
       updateCostCalculator();
     });
+
+    // Inline spinner buttons for increments (respect current resolution)
+    if (elements.durationSpinUp && elements.durationSpinDown) {
+      const spin = (mult) => {
+        const step = (selectedResolution === 15) ? 0.25 : 1;
+        const raw = elements.durationCustom.value;
+        const parsed = parseDurationInput(raw);
+        let current = (isNaN(parsed) || parsed === null) ? (selectedDuration || step) : parsed;
+        current = Math.round((current + mult * step) * (1 / step)) / (1 / step);
+        if (selectedResolution === 60 && current < 1) current = 1;
+        if (current < (selectedResolution === 15 ? 0.25 : 1)) current = (selectedResolution === 15 ? 0.25 : 1);
+        const formatted = formatHoursToInputString(current);
+        elements.durationCustom.value = formatted;
+        elements.durationCustom.classList.remove('invalid');
+        selectedDuration = current;
+        updateChart();
+        updateBestWindow();
+        updateCostCalculator();
+      };
+
+      elements.durationSpinUp.addEventListener('click', (e) => { e.preventDefault(); spin(1); });
+      elements.durationSpinDown.addEventListener('click', (e) => { e.preventDefault(); spin(-1); });
+    }
   }
 
   // Duration mode (consecutive vs cheapest) listeners
@@ -160,8 +248,29 @@ async function init() {
     });
   }
 
+  // Chart fullscreen / expand toggle (expands chart area to screen width)
+  if (elements.chartToggleFull) {
+    let chartExpanded = false;
+    elements.chartToggleFull.addEventListener('click', () => {
+      chartExpanded = !chartExpanded;
+      document.body.classList.toggle('chart-expanded', chartExpanded);
+      // Use icons: ⤢ expand, ⤡ collapse
+      elements.chartToggleFull.innerHTML = chartExpanded ? '⤡' : '⤢';
+      elements.chartToggleFull.setAttribute('title', chartExpanded ? 'Vähenda graafikut' : 'Suurenda graafikut');
+      elements.chartToggleFull.setAttribute('aria-label', chartExpanded ? 'Vähenda graafikut' : 'Suurenda graafikut');
+      // Force redraw to pick up new sizes
+      updateChart();
+    });
+  }
+
   elements.kwhInput.addEventListener('input', updateCostCalculator);
   elements.resetSettings.addEventListener('click', resetSettings);
+
+  // Set initial spinner titles according to resolution
+  if (elements.durationSpinUp && elements.durationSpinDown) {
+    elements.durationSpinUp.title = selectedResolution === 15 ? 'Suurenda 15 min' : 'Suurenda 1 h';
+    elements.durationSpinDown.title = selectedResolution === 15 ? 'Vähenda 15 min' : 'Vähenda 1 h';
+  }
 
   // Update countdown every minute
   setInterval(updateCountdown, 60000);
@@ -203,6 +312,9 @@ function loadSettings() {
     // default network package selection (prefer VORK2 if available)
     const pkgs = defaults.network_tariffs && defaults.network_tariffs.packages_low_voltage_upto_63A ? Object.keys(defaults.network_tariffs.packages_low_voltage_upto_63A) : [];
     settings.networkPackage = pkgs.includes('VORK2') ? 'VORK2' : (pkgs[0] || null);
+    // If defaults include a known security fee in network_tariffs, seed it so the UI shows it
+    const national = defaults.network_tariffs?.national_fees_and_taxes_cents_per_kwh || {};
+    settings.securityOfSupplyFee = national.security_of_supply_fee?.excl_vat ?? settings.securityOfSupplyFee ?? null;
   }
 }
 
@@ -233,6 +345,7 @@ function renderSettings() {
     transferDay: 'Päevane võrgutasu (07-23)',
     transferNight: 'Öine võrgutasu (23-07)',
     renewableSurcharge: 'Taastuvenergia tasu',
+    securityOfSupplyFee: 'Varustuskindluse tasu',
     exciseTax: 'Elektriaktsiis',
     vatPercent: 'Käibemaks'
   };
@@ -241,11 +354,12 @@ function renderSettings() {
     transferDay: 's/kWh',
     transferNight: 's/kWh',
     renewableSurcharge: 's/kWh',
+    securityOfSupplyFee: 's/kWh',
     exciseTax: 's/kWh',
     vatPercent: '%'
   };
 
-  const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'exciseTax', 'vatPercent'];
+  const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'securityOfSupplyFee', 'exciseTax', 'vatPercent'];
 
   feeKeys.forEach(key => {
     const item = document.createElement('div');
@@ -283,6 +397,8 @@ function renderSettings() {
     unit.textContent = units[key];
 
     inputGroup.appendChild(unit);
+
+    // No special note — security fee is treated like other fees and VAT will be applied
     item.appendChild(inputGroup);
     grid.appendChild(item);
   });
@@ -317,6 +433,27 @@ function renderSettings() {
     networkSelect.value = (settings.networkPackage === undefined || settings.networkPackage === null) ? '' : settings.networkPackage;
     renderPackageInfo(networkSelect.value);
 
+    // Also populate top-of-page selector (if present) and keep it in sync
+    if (elements.networkPackageTop) {
+      elements.networkPackageTop.innerHTML = '<option value="">Pole valitud</option>';
+      if (pkgs) {
+        Object.keys(pkgs).forEach(key => {
+          const opt = document.createElement('option');
+          opt.value = key;
+          opt.textContent = `${key} — ${pkgs[key].label}`;
+          elements.networkPackageTop.appendChild(opt);
+        });
+      }
+      elements.networkPackageTop.value = networkSelect.value;
+      elements.networkPackageTop.addEventListener('change', (ev) => {
+        // Mirror to settings selector
+        const val = ev.target.value || '';
+        if (networkSelect) networkSelect.value = val;
+        // Trigger same change logic as networkSelect
+        networkSelect.dispatchEvent(new Event('change'));
+      });
+    }
+
     networkSelect.addEventListener('change', (e) => {
       settings.networkPackage = e.target.value || null; // store null when unselected
       // Apply package to settings fields (transferDay/Night, national fees)
@@ -327,11 +464,13 @@ function renderSettings() {
       calculateDisplayPrices();
       updateAll();
       // Update DOM input values to reflect applied package
-      const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'exciseTax', 'vatPercent'];
+      const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'securityOfSupplyFee', 'exciseTax', 'vatPercent'];
       feeKeys.forEach(k => {
         const el = document.getElementById('setting-' + k);
         if (el) el.value = settings[k];
       });
+      // Sync top selector if present
+      if (elements.networkPackageTop) elements.networkPackageTop.value = e.target.value || '';
     });
   }
 
@@ -360,7 +499,8 @@ function renderSettings() {
 
   // Apply package to settings values (update settings.* fields but do not persist automatically)
   function applyPackageToSettings(pkgId) {
-    // If none selected, clear settings so inputs are empty and fees are not applied
+    // If none selected, clear some settings so inputs show empty (fees are not applied until a package is chosen)
+    // Note: keep securityOfSupplyFee seeded from national defaults so it remains visible in the UI
     if (!pkgId) {
       settings.transferDay = null;
       settings.transferNight = null;
@@ -384,6 +524,7 @@ function renderSettings() {
     const national = defaults.network_tariffs?.national_fees_and_taxes_cents_per_kwh || {};
     settings.renewableSurcharge = national.renewable_energy_fee?.excl_vat ?? settings.renewableSurcharge;
     settings.exciseTax = national.electricity_excise?.excl_vat ?? settings.exciseTax;
+    settings.securityOfSupplyFee = national.security_of_supply_fee?.excl_vat ?? settings.securityOfSupplyFee;
 
     // Keep VAT as configured in defaults.fees
     settings.vatPercent = defaults.fees?.vatPercent ?? settings.vatPercent;
@@ -630,6 +771,9 @@ function getTotalPrice(spotPrice, date) {
     const eff = new Date(sec.effective_from + 'T00:00:00Z');
     if (date >= eff) securityFee = sec.excl_vat || 0;
   }
+
+  // If national does not define a security fee for the date, fall back to user-configured / seeded value
+  if (!securityFee) securityFee = settings.securityOfSupplyFee ?? 0;
 
   const subtotal = spotPrice + networkFee + renewable + excise + securityFee;
   const total = subtotal * (1 + (settings.vatPercent || defaults.fees?.vatPercent || 0) / 100);
@@ -972,86 +1116,110 @@ function updateChart() {
   canvas.futurePrices = futurePrices;
   canvas.chartDimensions = { width, height, padding, dpr };
 
-  // Add click/touch handler for tooltip
+  // Add tooltip handlers (click/touch for mobile, mousemove/mouseleave for desktop hover)
   if (!canvas.hasTooltipHandler) {
     canvas.hasTooltipHandler = true;
 
-    const showTooltip = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
-      const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
-
-      const points = canvas.chartPoints;
-      if (!points || points.length === 0) return;
-
-      // Find closest point
-      let closestPoint = null;
+    // Helper: find closest point to x,y (within threshold)
+    function findClosestPoint(x, y, threshold = 30) {
+      const pts = canvas.chartPoints || [];
+      let closest = null;
       let closestDist = Infinity;
-
-      points.forEach((point, i) => {
-        const dist = Math.sqrt(Math.pow(point.x - x, 2) + Math.pow(point.y - y, 2));
-        if (dist < closestDist && dist < 30) {
+      pts.forEach((p, i) => {
+        const dist = Math.hypot(p.x - x, p.y - y);
+        if (dist < closestDist && dist < threshold) {
           closestDist = dist;
-          closestPoint = { ...point, index: i };
+          closest = { ...p, index: i };
         }
       });
+      return closest;
+    }
 
-      // Remove existing tooltip
-      const existingTooltip = document.getElementById('chartTooltip');
-      if (existingTooltip) existingTooltip.remove();
+    // Create or update tooltip element
+    function showOrUpdateTooltipAt(point, leftPos, topPos) {
+      if (!point) return;
+      const priceDate = new Date(point.timestamp);
+      const hour = priceDate.getHours();
+      const minutes = priceDate.getMinutes();
+      const price = point.price;
+      const spotDisplay = price * (1 + ((settings.vatPercent !== undefined) ? settings.vatPercent : (defaults.fees?.vatPercent || 0)) / 100);
+      const total = (point.displayPrice !== undefined) ? point.displayPrice : getTotalPrice(price, priceDate);
 
-      if (closestPoint) {
-        const priceDate = new Date(closestPoint.timestamp);
-        const hour = priceDate.getHours();
-        const minutes = priceDate.getMinutes();
-        const price = closestPoint.price;
-        // Show raw market price when no package selected
-        const spotDisplay = (!settings.networkPackage) ? price : (price * (1 + ((settings.vatPercent !== undefined) ? settings.vatPercent : (defaults.fees?.vatPercent || 0)) / 100));
-        const total = (closestPoint.displayPrice !== undefined) ? closestPoint.displayPrice : getTotalPrice(price, priceDate);
-
-        const tooltip = document.createElement('div');
+      let tooltip = document.getElementById('chartTooltip');
+      if (!tooltip) {
+        tooltip = document.createElement('div');
         tooltip.id = 'chartTooltip';
         tooltip.className = 'chart-tooltip';
-        tooltip.innerHTML = `
-          <strong>${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}</strong><br>
-          Börs: ${spotDisplay.toFixed(2)} s/kWh${settings.networkPackage ? ('<br>Kokku: ' + total.toFixed(2) + ' s/kWh') : ''}
-        `;
+      }
 
-        // Position tooltip - keep within bounds
-        const chartContainer = canvas.parentElement;
-        const containerWidth = chartContainer.offsetWidth;
+      tooltip.innerHTML = `
+        <strong>${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}</strong><br>
+        Börs: ${spotDisplay.toFixed(2)} s/kWh<br>
+        Kokku: ${total.toFixed(2)} s/kWh
+      `;
 
-        let leftPos = closestPoint.x;
-        let topPos = closestPoint.y - 10;
+      // Positioning
+      const chartContainer = canvas.parentElement;
+      const containerWidth = chartContainer.offsetWidth;
+      let left = leftPos;
+      let top = topPos - 10;
 
-        // Adjust if too close to left edge
-        if (leftPos < 60) {
-          leftPos = 60;
-        }
-        // Adjust if too close to right edge
-        if (leftPos > containerWidth - 60) {
-          leftPos = containerWidth - 60;
-        }
-        // Adjust if too close to top
-        if (topPos < 60) {
-          topPos = closestPoint.y + 40;
-          tooltip.classList.add('tooltip-below');
-        }
+      if (left < 60) left = 60;
+      if (left > containerWidth - 60) left = containerWidth - 60;
+      if (top < 60) {
+        top = topPos + 40;
+        tooltip.classList.add('tooltip-below');
+      } else {
+        tooltip.classList.remove('tooltip-below');
+      }
 
-        tooltip.style.left = `${leftPos}px`;
-        tooltip.style.top = `${topPos}px`;
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
 
-        chartContainer.appendChild(tooltip);
+      // Append if not present
+      if (!chartContainer.querySelector('#chartTooltip')) chartContainer.appendChild(tooltip);
+    }
 
-        // Auto-hide after 3 seconds
-        setTimeout(() => {
-          tooltip.remove();
-        }, 3000);
+    // Mousemove handler for hover
+    const onMouseMove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const closest = findClosestPoint(x, y);
+      if (closest) {
+        showOrUpdateTooltipAt(closest, closest.x, closest.y);
+      } else {
+        const t = document.getElementById('chartTooltip');
+        if (t) t.remove();
       }
     };
 
-    canvas.addEventListener('click', showTooltip);
-    canvas.addEventListener('touchstart', showTooltip);
+    const onMouseLeave = () => {
+      const t = document.getElementById('chartTooltip');
+      if (t) t.remove();
+    };
+
+    // For accessibility / mobile: keep the existing click/touch behavior (brief tooltip)
+    const showTooltipOnce = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
+      const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
+      const closest = findClosestPoint(x, y);
+      if (!closest) return;
+      showOrUpdateTooltipAt(closest, closest.x, closest.y);
+      // Auto-hide after 3s
+      setTimeout(() => {
+        const t = document.getElementById('chartTooltip');
+        if (t) t.remove();
+      }, 3000);
+    };
+
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('mouseleave', onMouseLeave);
+    canvas.addEventListener('mouseout', onMouseLeave);
+
+    canvas.addEventListener('click', showTooltipOnce);
+    canvas.addEventListener('touchstart', showTooltipOnce);
   }
 }
 
@@ -1096,11 +1264,12 @@ function findBestWindowFromPrices(prices, duration) {
 
 // Find cheapest non-consecutive hours (returns indices set of slots and avg price)
 function findCheapestNonConsecutiveFromPrices(prices, durationHours) {
-  if (!prices || prices.length === 0 || durationHours < 1) return null;
+  // Allow durations down to 0.25 h (15 min) when using 15-min resolution
+  if (!prices || prices.length === 0 || durationHours < 0.25) return null;
 
   // If user views 15-min resolution, select individual 15-min slots (not hourly blocks)
   if (selectedResolution === 15) {
-    const slotsNeeded = durationHours * 4; // 4 slots per hour
+    const slotsNeeded = Math.round(durationHours * 4); // 4 slots per hour
     // Build list of slots with their total price
     const slotList = prices.map((p, i) => ({ index: i, total: getTotalPrice(p.price, new Date(p.timestamp)), ts: new Date(p.timestamp) }));
 
