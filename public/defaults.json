@@ -4,6 +4,7 @@
     "transferNight": 2.30,
     "renewableSurcharge": 0.84,
     "exciseTax": 0.21,
+    "balancingCapacityFee": 0.373,
     "vatPercent": 24
   },
   "dayHours": {
@@ -15,6 +16,7 @@
     "transferNight": "Night transfer fee (22:00-07:00)",
     "renewableSurcharge": "Renewable energy surcharge",
     "exciseTax": "Electricity excise tax",
+    "balancingCapacityFee": "Balancing capacity fee",
     "vatPercent": "VAT"
   },
   "units": {
@@ -22,6 +24,7 @@
     "transferNight": "cents/kWh",
     "renewableSurcharge": "cents/kWh",
     "exciseTax": "cents/kWh",
+    "balancingCapacityFee": "cents/kWh",
     "vatPercent": "%"
   },
   "network_tariffs": {
@@ -152,11 +155,22 @@
     },
     "national_fees_and_taxes_cents_per_kwh": {
       "renewable_energy_fee": { "excl_vat": 0.84, "incl_vat": 1.04 },
-      "electricity_excise": { "excl_vat": 0.21, "incl_vat": 0.26 },
+      "electricity_excise": {
+        "excl_vat": 0.21,
+        "incl_vat": 0.26,
+        "changes": [
+          { "effective_from": "2026-05-01", "excl_vat": 0.307, "incl_vat": 0.38 }
+        ]
+      },
       "security_of_supply_fee": {
         "effective_from": "2026-01-01",
         "excl_vat": 0.758,
         "incl_vat": 0.94
+      },
+      "balancing_capacity_fee": {
+        "effective_from": "2026-01-01",
+        "excl_vat": 0.373,
+        "incl_vat": 0.46
       }
     },
     "estonia_public_holidays": {

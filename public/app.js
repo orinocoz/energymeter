@@ -366,7 +366,7 @@ function renderSettings() {
     vatPercent: '%'
   };
 
-  const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'securityOfSupplyFee', 'exciseTax', 'vatPercent'];
+  const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'securityOfSupplyFee', 'exciseTax', 'balancingCapacityFee', 'vatPercent'];
 
   feeKeys.forEach(key => {
     const item = document.createElement('div');
@@ -472,7 +472,7 @@ function renderSettings() {
       calculateDisplayPrices();
       updateAll();
       // Update DOM input values to reflect applied package
-      const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'securityOfSupplyFee', 'exciseTax', 'vatPercent'];
+      const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'securityOfSupplyFee', 'exciseTax', 'balancingCapacityFee', 'vatPercent'];
       feeKeys.forEach(k => {
         const el = document.getElementById('setting-' + k);
         if (el) el.value = settings[k];
@@ -514,6 +514,7 @@ function renderSettings() {
       settings.transferNight = null;
       settings.renewableSurcharge = null;
       settings.exciseTax = null;
+      settings.balancingCapacityFee = null;
       settings.vatPercent = null;
       return;
     }
@@ -533,6 +534,7 @@ function renderSettings() {
     settings.renewableSurcharge = national.renewable_energy_fee?.excl_vat ?? settings.renewableSurcharge;
     settings.exciseTax = national.electricity_excise?.excl_vat ?? settings.exciseTax;
     settings.securityOfSupplyFee = national.security_of_supply_fee?.excl_vat ?? settings.securityOfSupplyFee;
+    settings.balancingCapacityFee = national.balancing_capacity_fee?.excl_vat ?? settings.balancingCapacityFee;
 
     // Keep VAT as configured in defaults.fees
     settings.vatPercent = defaults.fees?.vatPercent ?? settings.vatPercent;
@@ -771,19 +773,38 @@ function getTotalPrice(spotPrice, date) {
   const networkFee = getNetworkEnergyPrice(settings.networkPackage, date);
   const national = defaults.network_tariffs?.national_fees_and_taxes_cents_per_kwh || {};
   const renewable = national.renewable_energy_fee?.excl_vat ?? settings.renewableSurcharge ?? 0;
-  const excise = national.electricity_excise?.excl_vat ?? settings.exciseTax ?? 0;
 
+  // Excise tax with date-based changes support
+  let excise = national.electricity_excise?.excl_vat ?? settings.exciseTax ?? 0;
+  const exciseChanges = national.electricity_excise?.changes || [];
+  for (const change of exciseChanges) {
+    if (change.effective_from) {
+      const eff = new Date(change.effective_from + 'T00:00:00Z');
+      if (date >= eff) excise = change.excl_vat;
+    }
+  }
+
+  // Security of supply fee with effective date
   let securityFee = 0;
   const sec = national.security_of_supply_fee;
   if (sec && sec.effective_from) {
     const eff = new Date(sec.effective_from + 'T00:00:00Z');
     if (date >= eff) securityFee = sec.excl_vat || 0;
   }
-
   // If national does not define a security fee for the date, fall back to user-configured / seeded value
   if (!securityFee) securityFee = settings.securityOfSupplyFee ?? 0;
 
-  const subtotal = spotPrice + networkFee + renewable + excise + securityFee;
+  // Balancing capacity fee with effective date
+  let balancingFee = 0;
+  const bal = national.balancing_capacity_fee;
+  if (bal && bal.effective_from) {
+    const eff = new Date(bal.effective_from + 'T00:00:00Z');
+    if (date >= eff) balancingFee = bal.excl_vat || 0;
+  }
+  // Fall back to user-configured / seeded value
+  if (!balancingFee) balancingFee = settings.balancingCapacityFee ?? 0;
+
+  const subtotal = spotPrice + networkFee + renewable + excise + securityFee + balancingFee;
   const total = subtotal * (1 + (settings.vatPercent || defaults.fees?.vatPercent || 0) / 100);
   return total;
 }
