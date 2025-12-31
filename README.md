@@ -1,14 +1,17 @@
 # Electricity Price Calculator
 
-Estonian Nord Pool spot price calculator with cost estimation and fee management.
+Estonian Nord Pool spot price calculator with network packages, cost estimation and fee management.
 
 ## Features
 
 - Real-time electricity spot prices from Elering (Nord Pool Estonia)
+- 15-minute and hourly price resolution
 - Hourly price chart with today and tomorrow's prices
-- Find cheapest consecutive hours window (1-8 hours)
+- Find cheapest hours: consecutive window or cheapest individual hours
 - Cost calculator with kWh input
-- Customizable Estonian grid fees (day/night transfer, renewable surcharge, excise tax, VAT)
+- Elektrilevi network packages (Võrk 1, 2, 4, 5 and Amper VML2)
+- Day/night/peak pricing with Estonian public holiday support
+- National fees with date-based effective dates (2026 taxes included)
 - Settings saved in browser localStorage
 
 ## Quick Start with Docker
@@ -44,16 +47,28 @@ npm run dev
 
 Default fees are set in `public/defaults.json`. Users can customize fees in the browser settings panel - changes are saved to localStorage.
 
-### Default Estonian fees (2024)
+### Network Packages
 
-| Fee | Day | Night |
-|-----|-----|-------|
-| Transfer fee | 3.95 c/kWh | 2.30 c/kWh |
-| Renewable surcharge | 0.84 c/kWh | |
-| Excise tax | 0.21 c/kWh | |
-| VAT | 24% | |
+| Package | Day | Night | Type |
+|---------|-----|-------|------|
+| Võrk 1 | 7.72 s/kWh | (flat) | ≤63A |
+| Võrk 2 | 6.07 s/kWh | 3.51 s/kWh | ≤63A |
+| Võrk 4 | 3.69 s/kWh | 2.10 s/kWh | ≤63A |
+| Võrk 5 | 5.29 s/kWh | 3.03 s/kWh | ≤63A, peaks |
+| Amper VML2 | 3.95 s/kWh | 2.30 s/kWh | >63A |
 
-Day hours: 07:00 - 23:00
+Day hours: Mon-Fri 07:00-22:00 (excl. public holidays)
+
+### National Fees (2025-2026)
+
+| Fee | Value | Effective |
+|-----|-------|-----------|
+| Renewable energy fee | 0.84 s/kWh | Current |
+| Electricity excise | 0.21 s/kWh | Until Apr 2026 |
+| Electricity excise | 0.307 s/kWh | From May 2026 |
+| Security of supply fee | 0.758 s/kWh | From Jan 2026 |
+| Balancing capacity fee | 0.373 s/kWh | From Jan 2026 |
+| VAT | 24% | Current |
 
 ## Data Source
 
