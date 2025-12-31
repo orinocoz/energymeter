@@ -136,6 +136,20 @@
         "periods": ["DAY", "DAY_PEAK", "NIGHT", "REST_PEAK"]
       }
     },
+    "packages_low_voltage_over_63A": {
+      "VML2": {
+        "label": "Amper VML2",
+        "energy_cents_per_kwh": {
+          "excl_vat": { "DAY": 3.95, "NIGHT": 2.30 },
+          "incl_vat": { "DAY": 4.90, "NIGHT": 2.85 }
+        },
+        "monthly_fee_eur": {
+          "excl_vat": { "base": 25.80, "per_ampere": 0.55 },
+          "incl_vat": { "base": 31.99, "per_ampere": 0.68 }
+        },
+        "periods": ["DAY", "NIGHT"]
+      }
+    },
     "national_fees_and_taxes_cents_per_kwh": {
       "renewable_energy_fee": { "excl_vat": 0.84, "incl_vat": 1.04 },
       "electricity_excise": { "excl_vat": 0.21, "incl_vat": 0.26 },

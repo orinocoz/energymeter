@@ -7,6 +7,13 @@ let selectedDuration = 1;   // Hours
 let selectedResolution = 15; // Minutes (60 = 1h, 15 = 15min)
 let selectedMode = 'consecutive'; // 'consecutive' or 'cheapest'
 
+// Helper to get all network packages from both under-63A and over-63A categories
+function getAllPackages() {
+  const under63 = defaults.network_tariffs?.packages_low_voltage_upto_63A || {};
+  const over63 = defaults.network_tariffs?.packages_low_voltage_over_63A || {};
+  return { ...under63, ...over63 };
+}
+
 // DOM Elements
 const elements = {
   currentPrice: document.getElementById('currentPrice'),
@@ -309,9 +316,9 @@ function loadSettings() {
     settings = JSON.parse(saved);
   } else {
     settings = { ...defaults.fees };
-    // default network package selection (prefer VORK2 if available)
-    const pkgs = defaults.network_tariffs && defaults.network_tariffs.packages_low_voltage_upto_63A ? Object.keys(defaults.network_tariffs.packages_low_voltage_upto_63A) : [];
-    settings.networkPackage = pkgs.includes('VORK2') ? 'VORK2' : (pkgs[0] || null);
+    // default network package selection (prefer VML2, then VORK2 if available)
+    const pkgs = Object.keys(getAllPackages());
+    settings.networkPackage = pkgs.includes('VML2') ? 'VML2' : (pkgs.includes('VORK2') ? 'VORK2' : (pkgs[0] || null));
     // If defaults include a known security fee in network_tariffs, seed it so the UI shows it
     const national = defaults.network_tariffs?.national_fees_and_taxes_cents_per_kwh || {};
     settings.securityOfSupplyFee = national.security_of_supply_fee?.excl_vat ?? settings.securityOfSupplyFee ?? null;
@@ -326,8 +333,8 @@ function saveSettings() {
 // Reset settings to defaults
 function resetSettings() {
   settings = { ...defaults.fees };
-  const pkgs = defaults.network_tariffs && defaults.network_tariffs.packages_low_voltage_upto_63A ? Object.keys(defaults.network_tariffs.packages_low_voltage_upto_63A) : [];
-  settings.networkPackage = pkgs.includes('VORK2') ? 'VORK2' : (pkgs[0] || null);
+  const pkgs = Object.keys(getAllPackages());
+  settings.networkPackage = pkgs.includes('VML2') ? 'VML2' : (pkgs.includes('VORK2') ? 'VORK2' : (pkgs[0] || null));
   saveSettings();
   renderSettings();
   updateAll();
@@ -410,11 +417,12 @@ function renderSettings() {
     // Always include an explicit empty option (no package selected)
     networkSelect.innerHTML = '<option value="">Pole valitud</option>';
 
-    const pkgs = defaults.network_tariffs && defaults.network_tariffs.packages_low_voltage_upto_63A ? defaults.network_tariffs.packages_low_voltage_upto_63A : null;
-    console.log('renderSettings: network packages available?', !!pkgs);
-    if (pkgs) {
-      console.log('renderSettings: packages', Object.keys(pkgs));
-      Object.keys(pkgs).forEach(key => {
+    const pkgs = getAllPackages();
+    const pkgKeys = Object.keys(pkgs);
+    console.log('renderSettings: network packages available?', pkgKeys.length > 0);
+    if (pkgKeys.length > 0) {
+      console.log('renderSettings: packages', pkgKeys);
+      pkgKeys.forEach(key => {
         const opt = document.createElement('option');
         opt.value = key;
         opt.textContent = `${key} — ${pkgs[key].label}`;
@@ -436,8 +444,8 @@ function renderSettings() {
     // Also populate top-of-page selector (if present) and keep it in sync
     if (elements.networkPackageTop) {
       elements.networkPackageTop.innerHTML = '<option value="">Pole valitud</option>';
-      if (pkgs) {
-        Object.keys(pkgs).forEach(key => {
+      if (pkgKeys.length > 0) {
+        pkgKeys.forEach(key => {
           const opt = document.createElement('option');
           opt.value = key;
           opt.textContent = `${key} — ${pkgs[key].label}`;
@@ -477,8 +485,8 @@ function renderSettings() {
   // Helper to show package info
   function renderPackageInfo(pkgId) {
     if (!packageInfo) return;
-    const pkgs = defaults.network_tariffs?.packages_low_voltage_upto_63A;
-    if (!pkgs || !pkgId || !pkgs[pkgId]) {
+    const pkgs = getAllPackages();
+    if (!pkgId || !pkgs[pkgId]) {
       packageInfo.textContent = 'Pole valitud — näidatakse ainult börsihinda';
       return;
     }
@@ -510,7 +518,7 @@ function renderSettings() {
       return;
     }
 
-    const pkgs = defaults.network_tariffs?.packages_low_voltage_upto_63A || {};
+    const pkgs = getAllPackages();
     const pkg = pkgs[pkgId];
     if (!pkg) return;
 
@@ -700,7 +708,7 @@ function baseDayRuleMatches(date) {
 
 // Determine package-specific period (DAY, NIGHT, DAY_PEAK, REST_PEAK, FLAT)
 function getPackagePeriod(pkgId, date) {
-  const pkgs = defaults.network_tariffs?.packages_low_voltage_upto_63A || {};
+  const pkgs = getAllPackages();
   const pkg = pkgs[pkgId];
   // fallback
   if (!pkg) {
@@ -738,7 +746,7 @@ function getPackagePeriod(pkgId, date) {
 
 function getNetworkEnergyPrice(pkgId, date) {
   // returns cents per kWh (excl VAT)
-  const pkgs = defaults.network_tariffs?.packages_low_voltage_upto_63A || {};
+  const pkgs = getAllPackages();
   const pkg = pkgs[pkgId];
   if (pkg) {
     const period = getPackagePeriod(pkgId, date);
@@ -818,7 +826,7 @@ function updateCurrentPrice() {
       const total = getTotalPrice(spotPrice, new Date(current.timestamp));
       elements.currentPrice.textContent = spotDisplay.toFixed(2);
       const pkgId = settings.networkPackage;
-      const pkgLabel = defaults.network_tariffs?.packages_low_voltage_upto_63A?.[pkgId]?.label || '';
+      const pkgLabel = getAllPackages()[pkgId]?.label || '';
       elements.currentPriceTotal.textContent = `Koos tasudega: ${total.toFixed(2)} s/kWh${pkgLabel ? ' (' + pkgLabel + ')' : ''}`;
     }
   } else {
