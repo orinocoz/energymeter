@@ -441,26 +441,17 @@ function renderSettings() {
     networkSelect.value = (settings.networkPackage === undefined || settings.networkPackage === null) ? '' : settings.networkPackage;
     renderPackageInfo(networkSelect.value);
 
-    // Also populate top-of-page selector (if present) and keep it in sync
-    if (elements.networkPackageTop) {
-      elements.networkPackageTop.innerHTML = '<option value="">Pole valitud</option>';
-      if (pkgKeys.length > 0) {
-        pkgKeys.forEach(key => {
-          const opt = document.createElement('option');
-          opt.value = key;
-          opt.textContent = `${key} — ${pkgs[key].label}`;
-          elements.networkPackageTop.appendChild(opt);
-        });
+    // Update top-of-page package display
+    function updatePackageTopDisplay(pkgId) {
+      if (!elements.networkPackageTop) return;
+      if (!pkgId) {
+        elements.networkPackageTop.textContent = '—';
+      } else {
+        const pkg = pkgs[pkgId];
+        elements.networkPackageTop.textContent = pkg ? pkg.label : pkgId;
       }
-      elements.networkPackageTop.value = networkSelect.value;
-      elements.networkPackageTop.addEventListener('change', (ev) => {
-        // Mirror to settings selector
-        const val = ev.target.value || '';
-        if (networkSelect) networkSelect.value = val;
-        // Trigger same change logic as networkSelect
-        networkSelect.dispatchEvent(new Event('change'));
-      });
     }
+    updatePackageTopDisplay(networkSelect.value);
 
     networkSelect.addEventListener('change', (e) => {
       settings.networkPackage = e.target.value || null; // store null when unselected
@@ -477,8 +468,8 @@ function renderSettings() {
         const el = document.getElementById('setting-' + k);
         if (el) el.value = settings[k];
       });
-      // Sync top selector if present
-      if (elements.networkPackageTop) elements.networkPackageTop.value = e.target.value || '';
+      // Update top package display
+      updatePackageTopDisplay(e.target.value);
     });
   }
 
