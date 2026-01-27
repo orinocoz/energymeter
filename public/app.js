@@ -111,7 +111,8 @@ async function init() {
         elements.durationSpinDown.title = selectedResolution === 15 ? 'Vähenda 15 min' : 'Vähenda 1 h';
       }
 
-      // Recalculate display prices and update everything
+      // Save and recalculate display prices and update everything
+      saveSettings();
       calculateDisplayPrices();
       updateAll();
     }
@@ -128,7 +129,8 @@ async function init() {
         elements.durationCustom.value = formatHoursToInputString(selectedDuration);
         elements.durationCustom.classList.remove('invalid');
       }
-      // Redraw chart with new duration selection
+      // Save and redraw chart with new duration selection
+      saveSettings();
       updateChart();
       updateBestWindow();
       updateCostCalculator();
@@ -169,6 +171,7 @@ async function init() {
       selectedDuration = normalized;
       document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
 
+      saveSettings();
       updateChart();
       updateBestWindow();
       updateCostCalculator();
@@ -211,6 +214,7 @@ async function init() {
       }
 
       elements.durationCustom.classList.remove('invalid');
+      saveSettings();
       updateChart();
       updateBestWindow();
       updateCostCalculator();
@@ -230,6 +234,7 @@ async function init() {
         elements.durationCustom.value = formatted;
         elements.durationCustom.classList.remove('invalid');
         selectedDuration = current;
+        saveSettings();
         updateChart();
         updateBestWindow();
         updateCostCalculator();
@@ -247,7 +252,8 @@ async function init() {
         document.querySelectorAll('.duration-mode-btn').forEach(btn => btn.classList.remove('active'));
         e.target.classList.add('active');
         selectedMode = e.target.dataset.mode;
-        // Update views
+        // Save and update views
+        saveSettings();
         updateChart();
         updateBestWindow();
         updateCostCalculator();
@@ -272,6 +278,22 @@ async function init() {
 
   elements.kwhInput.addEventListener('input', updateCostCalculator);
   elements.resetSettings.addEventListener('click', resetSettings);
+
+  // Restore UI state from saved settings
+  // Resolution buttons
+  document.querySelectorAll('.resolution-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.resolution) === selectedResolution);
+  });
+  // Duration input
+  if (elements.durationCustom) {
+    elements.durationCustom.value = formatHoursToInputString(selectedDuration);
+  }
+  // Duration buttons (deactivate all since custom value is shown)
+  document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
+  // Mode buttons
+  document.querySelectorAll('.duration-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === selectedMode);
+  });
 
   // Set initial spinner titles according to resolution
   if (elements.durationSpinUp && elements.durationSpinDown) {
@@ -314,6 +336,16 @@ function loadSettings() {
   const saved = localStorage.getItem('electricitySettings');
   if (saved) {
     settings = JSON.parse(saved);
+    // Restore UI preferences from settings if present
+    if (settings.selectedResolution !== undefined) {
+      selectedResolution = settings.selectedResolution;
+    }
+    if (settings.selectedDuration !== undefined) {
+      selectedDuration = settings.selectedDuration;
+    }
+    if (settings.selectedMode !== undefined) {
+      selectedMode = settings.selectedMode;
+    }
   } else {
     settings = { ...defaults.fees };
     // default network package selection (prefer VML2, then VORK2 if available)
@@ -327,6 +359,10 @@ function loadSettings() {
 
 // Save settings to localStorage
 function saveSettings() {
+  // Include UI preferences in saved settings
+  settings.selectedResolution = selectedResolution;
+  settings.selectedDuration = selectedDuration;
+  settings.selectedMode = selectedMode;
   localStorage.setItem('electricitySettings', JSON.stringify(settings));
 }
 
