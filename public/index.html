@@ -17,27 +17,12 @@
           <span class="price-unit">s/kWh</span>
         </div>
         <div class="price-total" id="currentPriceTotal">Koos tasudega: -- s/kWh</div>
-        <!-- Top-level network package display -->
-        <div class="package-top">
-          <span class="package-top-label">Võrgupakett:</span>
-          <span id="networkPackageTop" class="package-top-value">—</span>
-        </div>
       </section>
 
       <!-- Duration Selector -->
       <section class="duration-section">
         <div class="duration-row">
           <div class="duration-left">
-            <!-- Mode selector: keep existing consecutive option or choose cheapest non-consecutive hours -->
-            <div class="duration-mode">
-              <div class="mode-label">Režiim</div>
-              <div class="duration-mode-buttons" id="durationModeButtons">
-                <button class="duration-mode-btn active" data-mode="consecutive" title="Vali mitu tundi järjest">Järjest</button>
-                <button class="duration-mode-btn" data-mode="cheapest" title="Vali mitu tundi (odavaimad, mitte järjest)">Odavaimad</button>
-              </div>
-              <div class="mode-note">Vali mitu tundi soovid elektrit tarbida — "Odavaimad" valib odavaimad tunnid, need ei pea olema järjest.</div>
-            </div>
-
             <div class="duration-buttons" id="durationButtons">
               <button class="duration-btn active" data-hours="1">1h</button>
               <button class="duration-btn" data-hours="2">2h</button>
@@ -91,6 +76,18 @@
           <span class="legend-item legend-full-only" style="display:none;"><span class="legend-color full-line"></span> Kokku (+ marginaalid + km)</span>
           <span class="legend-item"><span class="legend-color best"></span> Soodsaim aeg</span>
           <span class="legend-item"><span class="legend-color current-line"></span> Praegu</span>
+        </div>
+      </section>
+
+      <!-- Mode Selector -->
+      <section class="mode-section">
+        <div class="duration-mode">
+          <div class="mode-label">Režiim</div>
+          <div class="duration-mode-buttons" id="durationModeButtons">
+            <button class="duration-mode-btn active" data-mode="consecutive" title="Vali mitu tundi järjest">Järjest</button>
+            <button class="duration-mode-btn" data-mode="cheapest" title="Vali mitu tundi (odavaimad, mitte järjest)">Odavaimad</button>
+          </div>
+          <div class="mode-note">Vali mitu tundi soovid elektrit tarbida — "Odavaimad" valib odavaimad tunnid, need ei pea olema järjest.</div>
         </div>
       </section>
 

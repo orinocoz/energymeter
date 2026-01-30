@@ -38,7 +38,6 @@ const elements = {
   savings: document.getElementById('savings'),
   settingsGrid: document.getElementById('settingsGrid'),
   networkPackage: document.getElementById('networkPackage'),
-  networkPackageTop: document.getElementById('networkPackageTop'),
   packageInfo: document.getElementById('packageInfo'),
   resetSettings: document.getElementById('resetSettings'),
   lastUpdated: document.getElementById('lastUpdated'),
@@ -502,18 +501,6 @@ function renderSettings() {
     networkSelect.value = (settings.networkPackage === undefined || settings.networkPackage === null) ? '' : settings.networkPackage;
     renderPackageInfo(networkSelect.value);
 
-    // Update top-of-page package display
-    function updatePackageTopDisplay(pkgId) {
-      if (!elements.networkPackageTop) return;
-      if (!pkgId) {
-        elements.networkPackageTop.textContent = '—';
-      } else {
-        const pkg = pkgs[pkgId];
-        elements.networkPackageTop.textContent = pkg ? pkg.label : pkgId;
-      }
-    }
-    updatePackageTopDisplay(networkSelect.value);
-
     networkSelect.addEventListener('change', (e) => {
       settings.networkPackage = e.target.value || null; // store null when unselected
       // Apply package to settings fields (transferDay/Night, national fees)
@@ -529,8 +516,6 @@ function renderSettings() {
         const el = document.getElementById('setting-' + k);
         if (el) el.value = settings[k];
       });
-      // Update top package display
-      updatePackageTopDisplay(e.target.value);
     });
   }
 

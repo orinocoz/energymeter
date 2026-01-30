@@ -290,10 +290,10 @@ section {
   color: var(--gray-700);
 }
 
-/* Top package display styling */
-.package-top { margin-top: 8px; display: flex; justify-content: center; align-items: center; gap: 0.4em; }
-.package-top-label { color: var(--gray-600); font-size: 0.9rem; }
-.package-top-value { font-weight: 600; color: var(--gray-800); }
+/* Mode section (below chart) */
+.mode-section {
+  padding: 16px 20px;
+}
 
 /* Small note for inputs */
 /* Removed special excl-VAT note for security fee — fee is included in VAT calculation like others */
