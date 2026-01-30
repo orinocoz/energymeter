@@ -33,18 +33,26 @@ const elements = {
   countdownBox: document.getElementById('countdownBox'),
   countdownText: document.getElementById('countdownText'),
   kwhInput: document.getElementById('kwhInput'),
+  kwhMinus: document.getElementById('kwhMinus'),
+  kwhPlus: document.getElementById('kwhPlus'),
   costNow: document.getElementById('costNow'),
   costOptimal: document.getElementById('costOptimal'),
   savings: document.getElementById('savings'),
+  savingsCard: document.getElementById('savingsCard'),
   settingsGrid: document.getElementById('settingsGrid'),
   networkPackage: document.getElementById('networkPackage'),
+  networkPackageTop: document.getElementById('networkPackageTop'),
   packageInfo: document.getElementById('packageInfo'),
   resetSettings: document.getElementById('resetSettings'),
   lastUpdated: document.getElementById('lastUpdated'),
   resolutionButtons: document.getElementById('resolutionButtons'),
   chartToggleFull: document.getElementById('chartToggleFull'),
-  showDualLines: document.getElementById('showDualLines'),
-  chartLegend: document.getElementById('chartLegend')
+  toggleDualLines: document.getElementById('toggleDualLines'),
+  chartLegend: document.getElementById('chartLegend'),
+  durationButtons: document.getElementById('durationButtons'),
+  durationCustomInput: document.getElementById('durationCustomInput'),
+  durationMinus: document.getElementById('durationMinus'),
+  durationPlus: document.getElementById('durationPlus')
 };
 
 // Parse duration input (accepts 'H:MM' or decimal like '1.5' or '1,5') and normalize to nearest 0.25 hours
@@ -89,8 +97,14 @@ async function init() {
       e.target.classList.add('active');
       selectedResolution = parseInt(e.target.dataset.resolution);
 
-      // Update slider step and value based on resolution
-      updateSliderStep();
+      // Normalize duration to new resolution step
+      const step = (selectedResolution === 15) ? 0.25 : 1;
+      const min = (selectedResolution === 15) ? 0.25 : 1;
+      let normalized = Math.round(selectedDuration / step) * step;
+      if (normalized < min) normalized = min;
+      selectedDuration = normalized;
+      syncDurationButtons();
+      updateDurationCustomInput();
 
       // Save and recalculate display prices and update everything
       saveSettings();
@@ -99,39 +113,89 @@ async function init() {
     }
   });
 
-  // Duration slider listener
-  if (elements.durationSlider) {
-    elements.durationSlider.addEventListener('input', () => {
-      selectedDuration = parseFloat(elements.durationSlider.value);
-      updateDurationDisplay();
-      saveSettings();
-      updateChart();
-      updateBestWindow();
-      updateCostCalculator();
+  // Duration buttons listeners
+  if (elements.durationButtons) {
+    elements.durationButtons.addEventListener('click', (e) => {
+      if (e.target.classList.contains('duration-btn') && e.target.dataset.hours) {
+        selectedDuration = parseInt(e.target.dataset.hours);
+        syncDurationButtons();
+        updateDurationCustomInput();
+        saveSettings();
+        updateChart();
+        updateBestWindow();
+        updateCostCalculator();
+      }
     });
   }
 
-  // Helper to update slider step based on resolution
-  function updateSliderStep() {
-    if (!elements.durationSlider) return;
-    const step = (selectedResolution === 15) ? 0.25 : 1;
-    const min = (selectedResolution === 15) ? 0.25 : 1;
-    elements.durationSlider.step = step;
-    elements.durationSlider.min = min;
-
-    // Round current value to new step
-    let normalized = Math.round(selectedDuration / step) * step;
-    if (normalized < min) normalized = min;
-    selectedDuration = normalized;
-    elements.durationSlider.value = normalized;
-    updateDurationDisplay();
+  // Custom duration input
+  if (elements.durationCustomInput) {
+    elements.durationCustomInput.addEventListener('change', () => {
+      const parsed = parseDurationInput(elements.durationCustomInput.value);
+      if (parsed && !isNaN(parsed) && parsed >= 0.25 && parsed <= 24) {
+        selectedDuration = parsed;
+        syncDurationButtons();
+        saveSettings();
+        updateChart();
+        updateBestWindow();
+        updateCostCalculator();
+      } else {
+        // Reset to current value if invalid
+        updateDurationCustomInput();
+      }
+    });
   }
 
-  // Helper to update duration display text
-  function updateDurationDisplay() {
-    if (elements.durationValue) {
-      elements.durationValue.textContent = formatHoursToInputString(selectedDuration);
+  // Duration +/- buttons
+  if (elements.durationMinus) {
+    elements.durationMinus.addEventListener('click', () => {
+      const step = (selectedResolution === 15) ? 0.25 : 1;
+      const min = (selectedResolution === 15) ? 0.25 : 1;
+      if (selectedDuration > min) {
+        selectedDuration = Math.max(min, selectedDuration - step);
+        syncDurationButtons();
+        updateDurationCustomInput();
+        saveSettings();
+        updateChart();
+        updateBestWindow();
+        updateCostCalculator();
+      }
+    });
+  }
+
+  if (elements.durationPlus) {
+    elements.durationPlus.addEventListener('click', () => {
+      const step = (selectedResolution === 15) ? 0.25 : 1;
+      if (selectedDuration < 24) {
+        selectedDuration = Math.min(24, selectedDuration + step);
+        syncDurationButtons();
+        updateDurationCustomInput();
+        saveSettings();
+        updateChart();
+        updateBestWindow();
+        updateCostCalculator();
+      }
+    });
+  }
+
+  // Helper to update duration custom input display
+  function updateDurationCustomInput() {
+    if (elements.durationCustomInput) {
+      elements.durationCustomInput.value = formatHoursToInputString(selectedDuration);
     }
+  }
+
+  // Sync duration buttons with current selectedDuration
+  function syncDurationButtons() {
+    if (!elements.durationButtons) return;
+    elements.durationButtons.querySelectorAll('.duration-btn').forEach(btn => {
+      btn.classList.remove('active');
+      const hours = parseInt(btn.dataset.hours);
+      // All buttons from 1h up to selectedDuration (max 8h) should be green
+      if (hours <= selectedDuration && hours <= 8) {
+        btn.classList.add('active');
+      }
+    });
   }
 
   // Duration mode (consecutive vs cheapest) listeners
@@ -165,15 +229,39 @@ async function init() {
     });
   }
 
-  elements.kwhInput.addEventListener('input', updateCostCalculator);
+  elements.kwhInput.addEventListener('change', updateCostCalculator);
+
+  // kWh +/- buttons
+  if (elements.kwhMinus) {
+    elements.kwhMinus.addEventListener('click', () => {
+      let value = parseFloat(elements.kwhInput.value) || 1;
+      if (value > 0.5) {
+        value = Math.max(0.5, value - 0.5);
+        elements.kwhInput.value = value.toFixed(1);
+        updateCostCalculator();
+      }
+    });
+  }
+
+  if (elements.kwhPlus) {
+    elements.kwhPlus.addEventListener('click', () => {
+      let value = parseFloat(elements.kwhInput.value) || 1;
+      value = value + 0.5;
+      elements.kwhInput.value = value.toFixed(1);
+      updateCostCalculator();
+    });
+  }
+
   elements.resetSettings.addEventListener('click', resetSettings);
 
-  // Dual lines toggle listener
-  if (elements.showDualLines) {
-    elements.showDualLines.checked = showDualLines;
-    updateChartLegend(); // Set initial legend visibility
-    elements.showDualLines.addEventListener('change', (e) => {
-      showDualLines = e.target.checked;
+  // Dual lines toggle button listener
+  if (elements.toggleDualLines) {
+    // Set initial state
+    elements.toggleDualLines.classList.toggle('active', showDualLines);
+    updateChartLegend();
+    elements.toggleDualLines.addEventListener('click', () => {
+      showDualLines = !showDualLines;
+      elements.toggleDualLines.classList.toggle('active', showDualLines);
       saveSettings();
       updateChartLegend();
       updateChart();
@@ -185,12 +273,9 @@ async function init() {
   elements.resolutionButtons.querySelectorAll('.toggle-btn').forEach(btn => {
     btn.classList.toggle('active', parseInt(btn.dataset.resolution) === selectedResolution);
   });
-  // Duration slider
-  if (elements.durationSlider) {
-    updateSliderStep();
-    elements.durationSlider.value = selectedDuration;
-    updateDurationDisplay();
-  }
+  // Duration buttons and input
+  syncDurationButtons();
+  updateDurationCustomInput();
   // Mode buttons
   elements.durationModeButtons.querySelectorAll('.toggle-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === selectedMode);
@@ -351,53 +436,75 @@ function renderSettings() {
     grid.appendChild(item);
   });
 
-  // Populate network package selector
+  // Populate network package selectors (main and compact top one)
   const networkSelect = document.getElementById('networkPackage');
+  const networkSelectTop = document.getElementById('networkPackageTop');
   const packageInfo = document.getElementById('packageInfo');
-  if (networkSelect) {
-    // Always include an explicit empty option (no package selected)
-    networkSelect.innerHTML = '<option value="">Pole valitud</option>';
+
+  // Helper to populate a network package select element
+  function populateNetworkSelect(selectEl, compact = false) {
+    if (!selectEl) return;
+    selectEl.innerHTML = compact ? '<option value="">Pakett</option>' : '<option value="">Pole valitud</option>';
 
     const pkgs = getAllPackages();
     const pkgKeys = Object.keys(pkgs);
-    console.log('renderSettings: network packages available?', pkgKeys.length > 0);
     if (pkgKeys.length > 0) {
-      console.log('renderSettings: packages', pkgKeys);
       pkgKeys.forEach(key => {
         const opt = document.createElement('option');
         opt.value = key;
-        opt.textContent = `${key} — ${pkgs[key].label}`;
-        networkSelect.appendChild(opt);
+        opt.textContent = compact ? pkgs[key].label : `${key} — ${pkgs[key].label}`;
+        selectEl.appendChild(opt);
       });
-
-      // If a saved package is no longer present, clear it
-      if (settings.networkPackage && !pkgs[settings.networkPackage]) {
-        console.log('Saved networkPackage no longer present, clearing');
-        settings.networkPackage = null;
-        saveSettings();
-      }
     }
+  }
 
-    // Set current value (allow empty)
-    networkSelect.value = (settings.networkPackage === undefined || settings.networkPackage === null) ? '' : settings.networkPackage;
-    renderPackageInfo(networkSelect.value);
-
-    networkSelect.addEventListener('change', (e) => {
-      settings.networkPackage = e.target.value || null; // store null when unselected
-      // Apply package to settings fields (transferDay/Night, national fees)
-      applyPackageToSettings(settings.networkPackage);
-      saveSettings();
-      renderPackageInfo(settings.networkPackage);
-      // Recalculate display prices (chart/stats depend on package) and update all
-      calculateDisplayPrices();
-      updateAll();
-      // Update DOM input values to reflect applied package
-      const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'securityOfSupplyFee', 'exciseTax', 'balancingCapacityFee', 'vatPercent'];
-      feeKeys.forEach(k => {
-        const el = document.getElementById('setting-' + k);
-        if (el) el.value = settings[k];
-      });
+  // Handler for package change (shared by both selectors)
+  function handlePackageChange(newValue) {
+    settings.networkPackage = newValue || null;
+    applyPackageToSettings(settings.networkPackage);
+    saveSettings();
+    renderPackageInfo(settings.networkPackage);
+    calculateDisplayPrices();
+    updateAll();
+    // Sync both selectors
+    if (networkSelect) networkSelect.value = newValue || '';
+    if (networkSelectTop) networkSelectTop.value = newValue || '';
+    // Update DOM input values to reflect applied package
+    const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'securityOfSupplyFee', 'exciseTax', 'balancingCapacityFee', 'vatPercent'];
+    feeKeys.forEach(k => {
+      const el = document.getElementById('setting-' + k);
+      if (el) el.value = settings[k];
     });
+  }
+
+  const pkgs = getAllPackages();
+  console.log('renderSettings: network packages available?', Object.keys(pkgs).length > 0);
+  if (Object.keys(pkgs).length > 0) {
+    console.log('renderSettings: packages', Object.keys(pkgs));
+    // If a saved package is no longer present, clear it
+    if (settings.networkPackage && !pkgs[settings.networkPackage]) {
+      console.log('Saved networkPackage no longer present, clearing');
+      settings.networkPackage = null;
+      saveSettings();
+    }
+  }
+
+  // Populate both selectors
+  populateNetworkSelect(networkSelect, false);
+  populateNetworkSelect(networkSelectTop, true);
+
+  // Set current value (allow empty)
+  const currentVal = (settings.networkPackage === undefined || settings.networkPackage === null) ? '' : settings.networkPackage;
+  if (networkSelect) networkSelect.value = currentVal;
+  if (networkSelectTop) networkSelectTop.value = currentVal;
+  renderPackageInfo(currentVal);
+
+  // Attach change listeners
+  if (networkSelect) {
+    networkSelect.addEventListener('change', (e) => handlePackageChange(e.target.value));
+  }
+  if (networkSelectTop) {
+    networkSelectTop.addEventListener('change', (e) => handlePackageChange(e.target.value));
   }
 
   // Helper to show package info
@@ -420,14 +527,6 @@ function renderSettings() {
     const dayPrice = p.energy_cents_per_kwh.excl_vat.DAY !== undefined ? `${p.energy_cents_per_kwh.excl_vat.DAY} s/kWh (päev)` : '';
     const flat = p.energy_cents_per_kwh.excl_vat.FLAT !== undefined ? `${p.energy_cents_per_kwh.excl_vat.FLAT} s/kWh (ühtne)` : '';
     packageInfo.textContent = `${periods} ${dayPrice}${flat ? (dayPrice ? ' • ' : '') + flat : ''}`;
-    // Note: chart and stats reflect total price (võrgutasu + riigitasud + KM) when a package is selected
-    const note = document.createElement('div');
-    note.className = 'package-note';
-    note.textContent = 'Diagramm ja statistika näitavad nüüd kogu hinda koos võrgutasu ja maksudega.';
-    // remove any old note
-    const old = packageInfo.querySelector('.package-note');
-    if (old) old.remove();
-    packageInfo.appendChild(note);
   }
 
   // Apply package to settings values (update settings.* fields but do not persist automatically)
@@ -844,11 +943,13 @@ function updateCurrentPrice() {
       elements.currentPrice.textContent = spotDisplay.toFixed(2);
       const pkgId = settings.networkPackage;
       const pkgLabel = getAllPackages()[pkgId]?.label || '';
-      elements.currentPriceTotal.innerHTML = `Koos tasudega: <strong>${total.toFixed(2)}</strong> s/kWh${pkgLabel ? ' · Elektripakett: ' + pkgLabel : ''}`;
+      elements.currentPriceTotal.innerHTML = pkgLabel
+        ? `Koos elektripakett ${pkgLabel} lisatasudega <strong>${total.toFixed(2)}</strong> senti/kWh`
+        : `Koos lisatasudega <strong>${total.toFixed(2)}</strong> senti/kWh`;
     }
   } else {
     elements.currentPrice.textContent = '--';
-    elements.currentPriceTotal.innerHTML = 'Koos tasudega: <strong>--</strong> s/kWh';
+    elements.currentPriceTotal.innerHTML = 'Koos lisatasudega <strong>--</strong> senti/kWh';
   }
 }
 
@@ -1077,12 +1178,12 @@ function updateChart() {
         const barWidth = points[lastBestIdx].x - points[firstBestIdx].x + (chartWidth / (futurePrices.length - 1));
 
         ctx.beginPath();
-        ctx.fillStyle = 'rgba(34, 197, 94, 0.25)';
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.35)';
         ctx.fillRect(barX - 2, padding.top, barWidth, chartHeight);
 
         // Draw left and right borders of the green zone
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(34, 197, 94, 0.6)';
+        ctx.strokeStyle = 'rgba(34, 197, 94, 0.8)';
         ctx.lineWidth = 2;
         ctx.setLineDash([]);
         ctx.moveTo(barX, padding.top);
@@ -1556,7 +1657,6 @@ function updateCountdown() {
     }
 
     if (!nextStart) {
-      elements.countdownBox.classList.add('waiting');
       elements.countdownText.textContent = '--';
       return;
     }
@@ -1564,21 +1664,18 @@ function updateCountdown() {
     const diff = new Date(nextStart) - new Date();
 
     if (diff <= 0) {
-      elements.countdownBox.classList.remove('waiting');
-      elements.countdownText.textContent = 'Soodsaim aeg on praegu!';
+      elements.countdownText.textContent = 'Praegu!';
     } else {
-      elements.countdownBox.classList.add('waiting');
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
       if (hours > 0) {
-        elements.countdownText.textContent = `Soodsaim aeg algab ${hours}h ${minutes}min pärast`;
+        elements.countdownText.textContent = `${hours}h ${minutes}min pärast`;
       } else {
-        elements.countdownText.textContent = `Soodsaim aeg algab ${minutes} minuti pärast`;
+        elements.countdownText.textContent = `${minutes} min pärast`;
       }
     }
   } else {
-    elements.countdownBox.classList.add('waiting');
     elements.countdownText.textContent = '--';
   }
 }
@@ -1601,33 +1698,40 @@ function updateCostCalculator() {
     return getBestSelectionFromFuturePrices(futurePrices, selectedDuration);
   })();
 
+  // Helper to format euro amount with comma decimal separator
+  const formatEuro = (amount) => amount.toFixed(2).replace('.', ',') + '€';
+
   if (current) {
     const currentTotal = getTotalPrice(current.price, new Date(current.timestamp));
-    const costNow = (currentTotal * kwh / 100).toFixed(3);
-    elements.costNow.textContent = `€${costNow}`;
+    const costNow = currentTotal * kwh / 100;
+    elements.costNow.textContent = formatEuro(costNow);
   } else {
     elements.costNow.textContent = '--';
   }
 
   if (best && best.avgPrice !== undefined) {
-    const costOptimal = (best.avgPrice * kwh / 100).toFixed(3);
-    elements.costOptimal.textContent = `€${costOptimal}`;
+    const costOptimal = best.avgPrice * kwh / 100;
+    elements.costOptimal.textContent = formatEuro(costOptimal);
 
     if (current) {
       const currentTotal = getTotalPrice(current.price, new Date(current.timestamp));
-      const savingsAmount = ((currentTotal - best.avgPrice) * kwh / 100).toFixed(3);
+      const savingsAmount = (currentTotal - best.avgPrice) * kwh / 100;
 
-      if (parseFloat(savingsAmount) > 0.001) {
-        elements.savings.textContent = `Säästad €${savingsAmount} oodates`;
-      } else if (parseFloat(savingsAmount) < -0.001) {
-        elements.savings.textContent = `Praegu on hea aeg! (€${Math.abs(savingsAmount)} odavam)`;
+      if (savingsAmount > 0.005) {
+        elements.savings.textContent = formatEuro(savingsAmount);
+        if (elements.savingsCard) elements.savingsCard.classList.remove('hidden');
+      } else if (savingsAmount < -0.005) {
+        elements.savings.textContent = `-${formatEuro(Math.abs(savingsAmount))}`;
+        if (elements.savingsCard) elements.savingsCard.classList.remove('hidden');
       } else {
-        elements.savings.textContent = '';
+        elements.savings.textContent = '--';
+        if (elements.savingsCard) elements.savingsCard.classList.add('hidden');
       }
     }
   } else {
     elements.costOptimal.textContent = '--';
-    elements.savings.textContent = '';
+    elements.savings.textContent = '--';
+    if (elements.savingsCard) elements.savingsCard.classList.add('hidden');
   }
 }
 

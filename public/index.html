@@ -23,8 +23,12 @@
       <section class="chart-section">
         <div class="chart-header">
           <span class="chart-date" id="chartDate">--</span>
-          <span class="chart-unit">senti/kWh koos km</span>
-          <button id="chartToggleFull" class="btn-secondary chart-toggle" title="Suurenda graafik laiuseni">Suurenda</button>
+          <div class="chart-header-buttons">
+            <span class="package-select-label">Valitud elektripakett:</span>
+            <select id="networkPackageTop" class="chart-toggle" title="Vali elektripakett"></select>
+            <button id="toggleDualLines" class="btn-secondary chart-toggle" title="Näita kahte hinnagraafikut: börsihind ja hind koos lisatasudega">Lisatasud</button>
+            <button id="chartToggleFull" class="btn-secondary chart-toggle" title="Suurenda graafik laiuseni">⤢</button>
+          </div>
         </div>
         <div class="chart-wrapper">
           <div class="chart-container">
@@ -38,7 +42,7 @@
           </div>
         </div>
         <div class="chart-legend" id="chartLegend">
-          <span class="legend-item"><span class="legend-color future"></span> Hind</span>
+          <span class="legend-item"><span class="legend-color future"></span> Hind (s/kWh koos km)</span>
           <span class="legend-item legend-spot-only" style="display:none;"><span class="legend-color spot-line"></span> Börs (ilma km)</span>
           <span class="legend-item legend-full-only" style="display:none;"><span class="legend-color full-line"></span> Kokku (+ marginaalid + km)</span>
           <span class="legend-item"><span class="legend-color best"></span> Soodsaim aeg</span>
@@ -49,30 +53,36 @@
       <!-- Duration, Mode & Resolution Selector -->
       <section class="mode-section">
         <div class="mode-row">
-          <div class="duration-slider-wrapper">
-            <div class="slider-label">Kestus: <strong id="durationValue">1:00</strong></div>
-            <input type="range" id="durationSlider" class="duration-slider" min="0.25" max="8" step="0.25" value="1">
-            <div class="slider-ticks">
-              <span>1h</span>
-              <span>2h</span>
-              <span>3h</span>
-              <span>4h</span>
-              <span>5h</span>
-              <span>6h</span>
-              <span>7h</span>
-              <span>8h</span>
+          <div class="duration-buttons-wrapper">
+            <div class="duration-buttons-label">Tarbimiseks soodsaima aja kestus:</div>
+            <div class="duration-buttons-row">
+              <div class="duration-buttons" id="durationButtons">
+                <button class="duration-btn active" data-hours="1">1h</button>
+                <button class="duration-btn" data-hours="2">2h</button>
+                <button class="duration-btn" data-hours="3">3h</button>
+                <button class="duration-btn" data-hours="4">4h</button>
+                <button class="duration-btn" data-hours="5">5h</button>
+                <button class="duration-btn" data-hours="6">6h</button>
+                <button class="duration-btn" data-hours="7">7h</button>
+                <button class="duration-btn" data-hours="8">8h</button>
+              </div>
+              <div class="duration-custom">
+                <button class="duration-adjust-btn" id="durationMinus" title="Vähenda 15 min">−</button>
+                <input type="text" id="durationCustomInput" value="1:00" title="Sisesta kestus (nt 1:30 või 2.5)">
+                <button class="duration-adjust-btn" id="durationPlus" title="Lisa 15 min">+</button>
+              </div>
             </div>
           </div>
           <div class="toggles-right">
             <div class="toggle-group">
-              <div class="toggle-label">Režiim</div>
+              <div class="toggle-label">Ajaperiood</div>
               <div class="toggle-buttons" id="durationModeButtons">
                 <button class="toggle-btn active" data-mode="consecutive" title="Vali mitu tundi järjest">Järjest</button>
                 <button class="toggle-btn" data-mode="cheapest" title="Vali mitu tundi (odavaimad, mitte järjest)">Odavaimad</button>
               </div>
             </div>
             <div class="toggle-group">
-              <div class="toggle-label">Täpsus</div>
+              <div class="toggle-label">Hinnastus</div>
               <div class="toggle-buttons" id="resolutionButtons">
                 <button class="toggle-btn" data-resolution="60">1h</button>
                 <button class="toggle-btn active" data-resolution="15">15m</button>
@@ -101,34 +111,38 @@
             <div class="info-label">Kõrgeim hind</div>
             <div class="info-value" id="maxPrice">-- s/kWh</div>
           </div>
-        </div>
-        <div class="countdown-box" id="countdownBox">
-          <span id="countdownText">--</span>
+          <div class="info-card countdown-card" id="countdownBox">
+            <div class="info-label">Soodsaim aeg algab</div>
+            <div class="info-value" id="countdownText">--</div>
+          </div>
         </div>
       </section>
 
       <!-- Cost Calculator -->
       <section class="calculator-section">
         <details>
-          <summary>Kulukalkulaator</summary>
-          <div class="calculator-row">
-            <div class="calculator-input">
-              <label for="kwhInput">Energiatarbimine:</label>
-              <div class="input-group">
-                <input type="number" id="kwhInput" min="0.1" step="0.1" value="1" placeholder="1.0">
+          <summary>Hinnakalkulaator</summary>
+          <div class="calc-grid">
+            <div class="calc-card">
+              <div class="calc-label">Energiatarbimine</div>
+              <div class="calc-input-group">
+                <button class="duration-adjust-btn" id="kwhMinus" title="Vähenda 0.5 kWh">−</button>
+                <input type="text" id="kwhInput" value="1" title="Sisesta energiatarbimine kWh">
+                <button class="duration-adjust-btn" id="kwhPlus" title="Lisa 0.5 kWh">+</button>
                 <span class="input-unit">kWh</span>
               </div>
             </div>
-            <div class="calculator-results">
-              <div class="calc-result">
-                <span class="calc-label">Kulu praegu:</span>
-                <span class="calc-value" id="costNow">--</span>
-              </div>
-              <div class="calc-result optimal">
-                <span class="calc-label">Kulu soodsaimal ajal:</span>
-                <span class="calc-value" id="costOptimal">--</span>
-              </div>
-              <div class="calc-savings" id="savings"></div>
+            <div class="calc-card">
+              <div class="calc-label">Kulu praegu</div>
+              <div class="calc-value" id="costNow">--</div>
+            </div>
+            <div class="calc-card optimal">
+              <div class="calc-label">Kulu soodsaimal ajal</div>
+              <div class="calc-value" id="costOptimal">--</div>
+            </div>
+            <div class="calc-card savings" id="savingsCard">
+              <div class="calc-label">Säästad</div>
+              <div class="calc-value" id="savings">--</div>
             </div>
           </div>
         </details>
@@ -137,7 +151,7 @@
       <!-- Settings -->
       <section class="settings-section">
         <details>
-          <summary>Tasude seaded</summary>
+          <summary>Paketitasud</summary>
           <div class="settings-content">
             <p class="settings-note">Tasud lisatakse börsihinnale. Seaded salvestatakse sinu brauseris.</p>
             <div class="settings-grid" id="settingsGrid"></div>
@@ -154,32 +168,14 @@
             <div class="settings-actions">
               <button id="resetSettings" class="btn-secondary">Taasta vaikeväärtused</button>
             </div>
-          </div>
-        </details>
-      </section>
-
-      <!-- Chart Settings -->
-      <section class="chart-settings-section">
-        <details>
-          <summary>Graafiku seaded</summary>
-          <div class="chart-settings-content">
-            <div class="toggle-setting">
-              <label class="toggle-label" for="showDualLines">
-                <input type="checkbox" id="showDualLines">
-                <span class="toggle-text">Näita kahte hinnaliini</span>
-              </label>
-              <p class="toggle-note">Joon 1: börsihind ilma käibemaksuta. Joon 2: hind koos marginaalidega ja käibemaksuga.</p>
+            <div class="data-info">
+              <p>Andmete allikas: <a href="https://dashboard.elering.ee" target="_blank" rel="noopener">Elering</a> (Nord Pool)</p>
+              <p>Viimati uuendatud: <span id="lastUpdated">--</span></p>
+              <p class="disclaimer">Homse hinnad on tavaliselt saadaval pärast kella 13:00.</p>
             </div>
           </div>
         </details>
       </section>
-
-      <!-- Footer -->
-      <footer class="data-info">
-        <p>Andmete allikas: <a href="https://dashboard.elering.ee" target="_blank" rel="noopener">Elering</a> (Nord Pool)</p>
-        <p>Viimati uuendatud: <span id="lastUpdated">--</span></p>
-        <p class="disclaimer">Homse hinnad on tavaliselt saadaval pärast kella 13:00.</p>
-      </footer>
     </main>
   </div>
 

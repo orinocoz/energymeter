@@ -7,9 +7,10 @@ Estonian Nord Pool spot price calculator with network packages, cost estimation 
 - Real-time electricity spot prices from Elering (Nord Pool Estonia)
 - 15-minute and hourly price resolution
 - Hourly price chart with today and tomorrow's prices
-- **Dual price line chart**: toggle between single line or two lines showing spot price (no VAT) vs full price (with margins + VAT)
+- **Quick network package selector** in chart header for fast switching
+- **Dual price line chart**: "Lisatasud" button toggles between single line or two lines showing spot price (no VAT) vs full price (with margins + VAT)
 - Find cheapest hours: consecutive window or cheapest individual hours
-- Cost calculator with kWh input
+- **Price calculator** (Hinnakalkulaator) with kWh input and savings display
 - Elektrilevi network packages (Võrk 1, 2, 4, 5 and Amper VML2)
 - Day/night/peak pricing with Estonian public holiday support
 - National fees with date-based effective dates (2026 taxes included)
@@ -47,7 +48,7 @@ npm run dev
 
 ## Configuration
 
-Default fees are set in `public/defaults.json`. Users can customize fees in the browser settings panel - changes are saved to localStorage.
+Default fees are set in `public/defaults.json`. Users can customize fees in the browser "Paketitasud" panel - changes are saved to localStorage.
 
 ### Network Packages
 
@@ -83,11 +84,21 @@ For electricity resellers, you can configure purchase and sales margins:
 
 ### Dual Price Lines
 
-Enable "Näita kahte hinnaliini" (Show two price lines) in Chart Settings to visualize:
+Click the "Lisatasud" button on the chart to visualize two price lines:
 - **Orange line**: Spot price without VAT
 - **Purple line**: Full price including network fees, taxes, margins and VAT
 
 Hover over the chart to see the price difference between the two lines.
+
+### Duration Selection
+
+Select the cheapest time period duration using:
+- Quick buttons: 1h, 2h, 3h, 4h, 5h, 6h, 7h, 8h (all selected hours shown in green)
+- Custom input with +/- buttons for values up to 24h
+
+Choose between:
+- **Järjest** (Consecutive): Find the best consecutive time window
+- **Odavaimad** (Cheapest): Find the cheapest individual hours (not necessarily consecutive)
 
 ## Data Source
 
