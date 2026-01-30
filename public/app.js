@@ -956,11 +956,11 @@ function updateCurrentPrice() {
       elements.currentPrice.textContent = spotDisplay.toFixed(2);
       const pkgId = settings.networkPackage;
       const pkgLabel = getAllPackages()[pkgId]?.label || '';
-      elements.currentPriceTotal.textContent = `Koos tasudega: ${total.toFixed(2)} s/kWh${pkgLabel ? ' (' + pkgLabel + ')' : ''}`;
+      elements.currentPriceTotal.innerHTML = `Koos tasudega: <strong>${total.toFixed(2)}</strong> s/kWh${pkgLabel ? ' · Elektripakett: ' + pkgLabel : ''}`;
     }
   } else {
     elements.currentPrice.textContent = '--';
-    elements.currentPriceTotal.textContent = 'Koos tasudega: -- s/kWh';
+    elements.currentPriceTotal.innerHTML = 'Koos tasudega: <strong>--</strong> s/kWh';
   }
 }
 
