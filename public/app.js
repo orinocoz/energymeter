@@ -528,9 +528,16 @@ function renderSettings() {
       return;
     }
     const p = pkgs[pkgId];
-    const periods = p.periods.join(', ');
+    const periodLabels = {
+      'DAY': 'Päev',
+      'NIGHT': 'Öö',
+      'DAY_PEAK': 'Päeva tipp',
+      'REST_PEAK': 'Puhkepäeva tipp',
+      'FLAT': 'Ühtne'
+    };
+    const periods = p.periods.map(period => periodLabels[period] || period).join(', ');
     const dayPrice = p.energy_cents_per_kwh.excl_vat.DAY !== undefined ? `${p.energy_cents_per_kwh.excl_vat.DAY} s/kWh (päev)` : '';
-    const flat = p.energy_cents_per_kwh.excl_vat.FLAT !== undefined ? `${p.energy_cents_per_kwh.excl_vat.FLAT} s/kWh (flat)` : '';
+    const flat = p.energy_cents_per_kwh.excl_vat.FLAT !== undefined ? `${p.energy_cents_per_kwh.excl_vat.FLAT} s/kWh (ühtne)` : '';
     packageInfo.textContent = `${periods} ${dayPrice}${flat ? (dayPrice ? ' • ' : '') + flat : ''}`;
     // Note: chart and stats reflect total price (võrgutasu + riigitasud + KM) when a package is selected
     const note = document.createElement('div');
