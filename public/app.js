@@ -25,8 +25,8 @@ const elements = {
   chartYAxis: document.getElementById('chartYAxis'),
   priceChart: document.getElementById('priceChart'),
   chartXAxis: document.getElementById('chartXAxis'),
-  durationButtons: document.getElementById('durationButtons'),
-  durationCustom: document.getElementById('durationCustom'),
+  durationSlider: document.getElementById('durationSlider'),
+  durationValue: document.getElementById('durationValue'),
   durationModeButtons: document.getElementById('durationModeButtons'),
   bestWindowTime: document.getElementById('bestWindowTime'),
   bestWindowPrice: document.getElementById('bestWindowPrice'),
@@ -43,8 +43,6 @@ const elements = {
   lastUpdated: document.getElementById('lastUpdated'),
   resolutionButtons: document.getElementById('resolutionButtons'),
   chartToggleFull: document.getElementById('chartToggleFull'),
-  durationSpinUp: document.getElementById('durationSpinUp'),
-  durationSpinDown: document.getElementById('durationSpinDown'),
   showDualLines: document.getElementById('showDualLines'),
   chartLegend: document.getElementById('chartLegend')
 };
@@ -91,27 +89,8 @@ async function init() {
       e.target.classList.add('active');
       selectedResolution = parseInt(e.target.dataset.resolution);
 
-      // When resolution changes, update custom input step/format and round existing value to the nearest step
-      const step = (selectedResolution === 15) ? 0.25 : 1;
-      const raw = elements.durationCustom && elements.durationCustom.value ? elements.durationCustom.value : '';
-      const parsed = parseDurationInput(raw);
-      if (!isNaN(parsed) && parsed !== null) {
-        let normalized = Math.round(parsed / step) * step;
-        if (selectedResolution === 60 && normalized < 1) normalized = 1; // enforce min 1h for 1h resolution
-        selectedDuration = normalized;
-        if (elements.durationCustom) elements.durationCustom.value = formatHoursToInputString(normalized);
-      } else if (selectedDuration) {
-        let normalized = Math.round(selectedDuration / step) * step;
-        if (selectedResolution === 60 && normalized < 1) normalized = 1;
-        selectedDuration = normalized;
-        if (elements.durationCustom) elements.durationCustom.value = formatHoursToInputString(normalized);
-      }
-
-      // Update spinner titles if present
-      if (elements.durationSpinUp && elements.durationSpinDown) {
-        elements.durationSpinUp.title = selectedResolution === 15 ? 'Suurenda 15 min' : 'Suurenda 1 h';
-        elements.durationSpinDown.title = selectedResolution === 15 ? 'Vähenda 15 min' : 'Vähenda 1 h';
-      }
+      // Update slider step and value based on resolution
+      updateSliderStep();
 
       // Save and recalculate display prices and update everything
       saveSettings();
@@ -120,130 +99,38 @@ async function init() {
     }
   });
 
-  // Duration button listeners
-  elements.durationButtons.addEventListener('click', (e) => {
-    if (e.target.classList.contains('duration-btn')) {
-      document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
-      e.target.classList.add('active');
-      selectedDuration = parseInt(e.target.dataset.hours);
-      // Sync custom input (show as hh:mm)
-      if (elements.durationCustom) {
-        elements.durationCustom.value = formatHoursToInputString(selectedDuration);
-        elements.durationCustom.classList.remove('invalid');
-      }
-      // Save and redraw chart with new duration selection
-      saveSettings();
-      updateChart();
-      updateBestWindow();
-      updateCostCalculator();
-    }
-  });
-
-  // Custom duration input handling (supports 0.25-step / 15 minutes)
-  if (elements.durationCustom) {
-    const sanitizeAndApply = () => {
-      const raw = elements.durationCustom.value;
-      if (raw === '' || raw === null) {
-        // Clear selection (restore default button state if any)
-        document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
-        elements.durationCustom.classList.remove('invalid');
-        elements.durationCustom.value = '';
-        updateChart();
-        updateBestWindow();
-        updateCostCalculator();
-        return;
-      }
-
-      // Parse input (accept hh:mm or decimal) and allow 0.25 (15min) increments
-      const normalized = parseDurationInput(raw);
-      if (isNaN(normalized) || normalized === null || normalized < 0.25) {
-        elements.durationCustom.classList.add('invalid');
-        return;
-      }
-
-      // If normalized differs from input, write formatted hh:mm into the input
-      const formatted = formatHoursToInputString(normalized);
-      if (elements.durationCustom.value !== formatted) {
-        elements.durationCustom.value = formatted;
-      }
-
-      elements.durationCustom.classList.remove('invalid');
-
-      // Apply as selected duration and clear button active state
-      selectedDuration = normalized;
-      document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
-
-      saveSettings();
-      updateChart();
-      updateBestWindow();
-      updateCostCalculator();
-    };
-
-    elements.durationCustom.addEventListener('input', () => {
-      sanitizeAndApply();
-    });
-
-    elements.durationCustom.addEventListener('focus', () => {
-      // Apply current value while focused
-      sanitizeAndApply();
-    });
-
-    elements.durationCustom.addEventListener('blur', () => {
-      // Final sanitize on blur
-      const raw = elements.durationCustom.value;
-      const normalized = parseDurationInput(raw);
-      if (isNaN(normalized) || normalized === null) {
-        // Keep blank if invalid
-        elements.durationCustom.classList.remove('invalid');
-        elements.durationCustom.value = '';
-        updateChart();
-        updateBestWindow();
-        updateCostCalculator();
-        return;
-      }
-      // If current resolution is 1h, require minimum 1h and round accordingly
-      if (selectedResolution === 60) {
-        let norm = Math.round(normalized);
-        if (norm < 1) norm = 1;
-        elements.durationCustom.value = formatHoursToInputString(norm);
-        selectedDuration = norm;
-      } else {
-        // Normalize and display as hh:mm to nearest 0.25
-        const norm = Math.round(normalized * 4) / 4;
-        const formatted = formatHoursToInputString(norm);
-        elements.durationCustom.value = formatted;
-        selectedDuration = norm;
-      }
-
-      elements.durationCustom.classList.remove('invalid');
+  // Duration slider listener
+  if (elements.durationSlider) {
+    elements.durationSlider.addEventListener('input', () => {
+      selectedDuration = parseFloat(elements.durationSlider.value);
+      updateDurationDisplay();
       saveSettings();
       updateChart();
       updateBestWindow();
       updateCostCalculator();
     });
+  }
 
-    // Inline spinner buttons for increments (respect current resolution)
-    if (elements.durationSpinUp && elements.durationSpinDown) {
-      const spin = (mult) => {
-        const step = (selectedResolution === 15) ? 0.25 : 1;
-        const raw = elements.durationCustom.value;
-        const parsed = parseDurationInput(raw);
-        let current = (isNaN(parsed) || parsed === null) ? (selectedDuration || step) : parsed;
-        current = Math.round((current + mult * step) * (1 / step)) / (1 / step);
-        if (selectedResolution === 60 && current < 1) current = 1;
-        if (current < (selectedResolution === 15 ? 0.25 : 1)) current = (selectedResolution === 15 ? 0.25 : 1);
-        const formatted = formatHoursToInputString(current);
-        elements.durationCustom.value = formatted;
-        elements.durationCustom.classList.remove('invalid');
-        selectedDuration = current;
-        saveSettings();
-        updateChart();
-        updateBestWindow();
-        updateCostCalculator();
-      };
+  // Helper to update slider step based on resolution
+  function updateSliderStep() {
+    if (!elements.durationSlider) return;
+    const step = (selectedResolution === 15) ? 0.25 : 1;
+    const min = (selectedResolution === 15) ? 0.25 : 1;
+    elements.durationSlider.step = step;
+    elements.durationSlider.min = min;
 
-      elements.durationSpinUp.addEventListener('click', (e) => { e.preventDefault(); spin(1); });
-      elements.durationSpinDown.addEventListener('click', (e) => { e.preventDefault(); spin(-1); });
+    // Round current value to new step
+    let normalized = Math.round(selectedDuration / step) * step;
+    if (normalized < min) normalized = min;
+    selectedDuration = normalized;
+    elements.durationSlider.value = normalized;
+    updateDurationDisplay();
+  }
+
+  // Helper to update duration display text
+  function updateDurationDisplay() {
+    if (elements.durationValue) {
+      elements.durationValue.textContent = formatHoursToInputString(selectedDuration);
     }
   }
 
@@ -298,22 +185,16 @@ async function init() {
   elements.resolutionButtons.querySelectorAll('.toggle-btn').forEach(btn => {
     btn.classList.toggle('active', parseInt(btn.dataset.resolution) === selectedResolution);
   });
-  // Duration input
-  if (elements.durationCustom) {
-    elements.durationCustom.value = formatHoursToInputString(selectedDuration);
+  // Duration slider
+  if (elements.durationSlider) {
+    updateSliderStep();
+    elements.durationSlider.value = selectedDuration;
+    updateDurationDisplay();
   }
-  // Duration buttons (deactivate all since custom value is shown)
-  document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
   // Mode buttons
   elements.durationModeButtons.querySelectorAll('.toggle-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === selectedMode);
   });
-
-  // Set initial spinner titles according to resolution
-  if (elements.durationSpinUp && elements.durationSpinDown) {
-    elements.durationSpinUp.title = selectedResolution === 15 ? 'Suurenda 15 min' : 'Suurenda 1 h';
-    elements.durationSpinDown.title = selectedResolution === 15 ? 'Vähenda 15 min' : 'Vähenda 1 h';
-  }
 
   // Update countdown every minute
   setInterval(updateCountdown, 60000);

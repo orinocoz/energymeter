@@ -49,24 +49,9 @@
       <!-- Duration, Mode & Resolution Selector -->
       <section class="mode-section">
         <div class="mode-row">
-          <div class="duration-left">
-            <div class="duration-buttons" id="durationButtons">
-              <button class="duration-btn active" data-hours="1">1h</button>
-              <button class="duration-btn" data-hours="2">2h</button>
-              <button class="duration-btn" data-hours="3">3h</button>
-              <button class="duration-btn" data-hours="4">4h</button>
-              <button class="duration-btn" data-hours="5">5h</button>
-              <button class="duration-btn" data-hours="6">6h</button>
-              <button class="duration-btn" data-hours="7">7h</button>
-              <button class="duration-btn" data-hours="8">8h</button>
-              <div class="duration-custom-wrapper">
-                <input id="durationCustom" class="duration-custom" type="text" inputmode="decimal" placeholder="Muu" aria-label="Sisesta tunnid (hh:mm või 0.25 samm)">
-                <div class="duration-spinners" aria-hidden="true">
-                  <button id="durationSpinUp" class="duration-spinner up" type="button" title="Suurenda 15 min">▲</button>
-                  <button id="durationSpinDown" class="duration-spinner down" type="button" title="Vähenda 15 min">▼</button>
-                </div>
-              </div>
-            </div>
+          <div class="duration-slider-wrapper">
+            <div class="slider-label">Kestus: <strong id="durationValue">1:00</strong></div>
+            <input type="range" id="durationSlider" class="duration-slider" min="0.25" max="8" step="0.25" value="1">
           </div>
           <div class="toggles-right">
             <div class="toggle-group">
