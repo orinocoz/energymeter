@@ -1131,8 +1131,9 @@ function updateChart() {
   // Clear canvas
   ctx.clearRect(0, 0, width, height);
 
-  // Draw zero line if negative prices
-  if (hasNegative) {
+  // Draw zero line if negative prices or dual lines mode (always show zero reference)
+  const showZeroLine = hasNegative || (showDualLines && settings.networkPackage);
+  if (showZeroLine && paddedMin <= 0 && paddedMax >= 0) {
     const zeroY = padding.top + ((paddedMax - 0) / priceRange) * chartHeight;
     ctx.beginPath();
     ctx.strokeStyle = '#9ca3af';
