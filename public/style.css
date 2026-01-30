@@ -301,6 +301,7 @@ section {
 /* Chart */
 .chart-section {
   padding: 20px;
+  position: relative;
 }
 
 .chart-header {

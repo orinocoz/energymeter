@@ -1037,8 +1037,14 @@ function updateChart() {
 
   // Round to nice 2-step intervals
   const stepSize = 2;
-  const roundedMin = Math.floor(minPrice / stepSize) * stepSize;
-  const roundedMax = Math.ceil(maxPrice / stepSize) * stepSize;
+  let roundedMin = Math.floor(minPrice / stepSize) * stepSize;
+  let roundedMax = Math.ceil(maxPrice / stepSize) * stepSize;
+
+  // Dual lines mode: always include zero on Y-axis
+  if (showDualLines && settings.networkPackage) {
+    if (roundedMin > 0) roundedMin = 0;
+    if (roundedMax < 0) roundedMax = 0;
+  }
 
   // Add padding - less for dual lines to maximize chart usage
   const padSteps = (showDualLines && settings.networkPackage) ? 0 : 1;
@@ -1358,48 +1364,49 @@ function updateChart() {
         `;
       }
 
-      // Positioning - ensure tooltip stays within visible chart area
-      const chartContainer = canvas.parentElement;
-      const containerRect = chartContainer.getBoundingClientRect();
-      const containerWidth = chartContainer.offsetWidth;
-      const containerHeight = chartContainer.offsetHeight;
+      // Positioning - use chart-section as container to avoid overflow:hidden clipping
+      const chartSection = canvas.closest('.chart-section');
+      const chartArea = canvas.closest('.chart-area');
+      const chartAreaRect = chartArea.getBoundingClientRect();
+      const sectionRect = chartSection.getBoundingClientRect();
+
+      // Calculate position relative to chart-section
+      const pointAbsX = chartAreaRect.left + leftPos - sectionRect.left;
+      const pointAbsY = chartAreaRect.top + topPos - sectionRect.top;
 
       // Measure tooltip size (append temporarily if needed)
-      if (!chartContainer.contains(tooltip)) {
+      if (!chartSection.contains(tooltip)) {
         tooltip.style.visibility = 'hidden';
-        chartContainer.appendChild(tooltip);
+        chartSection.appendChild(tooltip);
       }
       const tooltipWidth = tooltip.offsetWidth;
       const tooltipHeight = tooltip.offsetHeight;
       tooltip.style.visibility = '';
 
-      let left = leftPos;
-      let top = topPos - tooltipHeight - 10;
+      let left = pointAbsX;
+      let top = pointAbsY - tooltipHeight - 10;
 
-      // Horizontal bounds: keep tooltip fully visible
+      // Horizontal bounds: keep tooltip fully visible within section
       const minLeft = tooltipWidth / 2 + 5;
-      const maxLeft = containerWidth - tooltipWidth / 2 - 5;
+      const maxLeft = sectionRect.width - tooltipWidth / 2 - 5;
       if (left < minLeft) left = minLeft;
       if (left > maxLeft) left = maxLeft;
 
       // Vertical bounds: if too close to top, show below the point
       if (top < 5) {
-        top = topPos + 20;
+        top = pointAbsY + 20;
         tooltip.classList.add('tooltip-below');
       } else {
         tooltip.classList.remove('tooltip-below');
       }
 
       // If still overflows bottom, clamp it
-      if (top + tooltipHeight > containerHeight - 5) {
-        top = containerHeight - tooltipHeight - 5;
+      if (top + tooltipHeight > sectionRect.height - 5) {
+        top = sectionRect.height - tooltipHeight - 5;
       }
 
       tooltip.style.left = `${left}px`;
       tooltip.style.top = `${top}px`;
-
-      // Append if not present
-      if (!chartContainer.querySelector('#chartTooltip')) chartContainer.appendChild(tooltip);
     }
 
     // Mousemove handler for hover
