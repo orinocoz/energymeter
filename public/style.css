@@ -141,6 +141,30 @@ section {
   border-radius: 4px;
 }
 
+.slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 8px 0 8px;
+  margin-top: 2px;
+}
+
+.slider-ticks span {
+  font-size: 0.65rem;
+  color: var(--gray-400);
+  text-align: center;
+  width: 20px;
+  margin-left: -10px;
+}
+
+.slider-ticks span:first-child {
+  margin-left: 0;
+}
+
+.slider-ticks span:last-child {
+  margin-left: auto;
+  margin-right: 0;
+}
+
 /* Package selector */
 .package-select .setting-input-group {
   display: flex;
