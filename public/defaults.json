@@ -5,7 +5,9 @@
     "renewableSurcharge": 0.84,
     "exciseTax": 0.21,
     "balancingCapacityFee": 0.373,
-    "vatPercent": 24
+    "vatPercent": 24,
+    "purchaseMargin": 0,
+    "salesMargin": 1
   },
   "dayHours": {
     "start": 7,
@@ -17,7 +19,9 @@
     "renewableSurcharge": "Renewable energy surcharge",
     "exciseTax": "Electricity excise tax",
     "balancingCapacityFee": "Balancing capacity fee",
-    "vatPercent": "VAT"
+    "vatPercent": "VAT",
+    "purchaseMargin": "Purchase margin",
+    "salesMargin": "Sales margin"
   },
   "units": {
     "transferDay": "cents/kWh",
@@ -25,7 +29,9 @@
     "renewableSurcharge": "cents/kWh",
     "exciseTax": "cents/kWh",
     "balancingCapacityFee": "cents/kWh",
-    "vatPercent": "%"
+    "vatPercent": "%",
+    "purchaseMargin": "cents/kWh",
+    "salesMargin": "cents/kWh"
   },
   "network_tariffs": {
     "schema": "ee.elektrilevi.vorguteenuse_hinnakiri.v1",

@@ -85,8 +85,10 @@
             </div>
           </div>
         </div>
-        <div class="chart-legend">
+        <div class="chart-legend" id="chartLegend">
           <span class="legend-item"><span class="legend-color future"></span> Hind</span>
+          <span class="legend-item legend-spot-only" style="display:none;"><span class="legend-color spot-line"></span> Börs (ilma km)</span>
+          <span class="legend-item legend-full-only" style="display:none;"><span class="legend-color full-line"></span> Kokku (+ marginaalid + km)</span>
           <span class="legend-item"><span class="legend-color best"></span> Soodsaim aeg</span>
           <span class="legend-item"><span class="legend-color current-line"></span> Praegu</span>
         </div>
@@ -163,6 +165,22 @@
 
             <div class="settings-actions">
               <button id="resetSettings" class="btn-secondary">Taasta vaikeväärtused</button>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- Chart Settings -->
+      <section class="chart-settings-section">
+        <details>
+          <summary>Graafiku seaded</summary>
+          <div class="chart-settings-content">
+            <div class="toggle-setting">
+              <label class="toggle-label" for="showDualLines">
+                <input type="checkbox" id="showDualLines">
+                <span class="toggle-text">Näita kahte hinnaliini</span>
+              </label>
+              <p class="toggle-note">Joon 1: börsihind ilma käibemaksuta. Joon 2: hind koos marginaalidega ja käibemaksuga.</p>
             </div>
           </div>
         </details>

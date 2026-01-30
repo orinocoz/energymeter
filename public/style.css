@@ -661,6 +661,68 @@ body.chart-expanded .chart-wrapper {
   display: none;
 }
 
+/* Chart Settings Section */
+.chart-settings-section {
+  background: white;
+}
+
+.chart-settings-section summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--gray-700);
+  padding: 4px 0;
+}
+
+.chart-settings-content {
+  padding-top: 16px;
+}
+
+.toggle-setting {
+  margin-bottom: 12px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--gray-700);
+}
+
+.toggle-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.toggle-text {
+  font-weight: 500;
+}
+
+.toggle-note {
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  margin-top: 6px;
+  margin-left: 28px;
+}
+
+/* Chart legend dual line colors */
+.legend-color.spot-line {
+  background: #f59e0b;
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.legend-color.full-line {
+  background: #8b5cf6;
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
+}
+
 /* Settings */
 .settings-section {
   background: white;

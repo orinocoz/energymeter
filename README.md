@@ -7,11 +7,13 @@ Estonian Nord Pool spot price calculator with network packages, cost estimation 
 - Real-time electricity spot prices from Elering (Nord Pool Estonia)
 - 15-minute and hourly price resolution
 - Hourly price chart with today and tomorrow's prices
+- **Dual price line chart**: toggle between single line or two lines showing spot price (no VAT) vs full price (with margins + VAT)
 - Find cheapest hours: consecutive window or cheapest individual hours
 - Cost calculator with kWh input
 - Elektrilevi network packages (Võrk 1, 2, 4, 5 and Amper VML2)
 - Day/night/peak pricing with Estonian public holiday support
 - National fees with date-based effective dates (2026 taxes included)
+- **Purchase/sales margin settings** for electricity resellers
 - Settings saved in browser localStorage
 
 ## Quick Start with Docker
@@ -69,6 +71,23 @@ Day hours: Mon-Fri 07:00-22:00 (excl. public holidays)
 | Security of supply fee | 0.758 s/kWh | From Jan 2026 |
 | Balancing capacity fee | 0.373 s/kWh | From Jan 2026 |
 | VAT | 24% | Current |
+
+### Margin Settings
+
+For electricity resellers, you can configure purchase and sales margins:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Purchase margin | 0 s/kWh | Margin added to purchase price |
+| Sales margin | 1 s/kWh | Margin added to sales price |
+
+### Dual Price Lines
+
+Enable "Näita kahte hinnaliini" (Show two price lines) in Chart Settings to visualize:
+- **Orange line**: Spot price without VAT
+- **Purple line**: Full price including network fees, taxes, margins and VAT
+
+Hover over the chart to see the price difference between the two lines.
 
 ## Data Source
 

@@ -6,6 +6,7 @@ let settings = {};
 let selectedDuration = 1;   // Hours
 let selectedResolution = 15; // Minutes (60 = 1h, 15 = 15min)
 let selectedMode = 'consecutive'; // 'consecutive' or 'cheapest'
+let showDualLines = false;  // Show two price lines on chart
 
 // Helper to get all network packages from both under-63A and over-63A categories
 function getAllPackages() {
@@ -44,7 +45,9 @@ const elements = {
   resolutionButtons: document.getElementById('resolutionButtons'),
   chartToggleFull: document.getElementById('chartToggleFull'),
   durationSpinUp: document.getElementById('durationSpinUp'),
-  durationSpinDown: document.getElementById('durationSpinDown')
+  durationSpinDown: document.getElementById('durationSpinDown'),
+  showDualLines: document.getElementById('showDualLines'),
+  chartLegend: document.getElementById('chartLegend')
 };
 
 // Parse duration input (accepts 'H:MM' or decimal like '1.5' or '1,5') and normalize to nearest 0.25 hours
@@ -279,6 +282,18 @@ async function init() {
   elements.kwhInput.addEventListener('input', updateCostCalculator);
   elements.resetSettings.addEventListener('click', resetSettings);
 
+  // Dual lines toggle listener
+  if (elements.showDualLines) {
+    elements.showDualLines.checked = showDualLines;
+    updateChartLegend(); // Set initial legend visibility
+    elements.showDualLines.addEventListener('change', (e) => {
+      showDualLines = e.target.checked;
+      saveSettings();
+      updateChartLegend();
+      updateChart();
+    });
+  }
+
   // Restore UI state from saved settings
   // Resolution buttons
   document.querySelectorAll('.resolution-btn').forEach(btn => {
@@ -346,6 +361,9 @@ function loadSettings() {
     if (settings.selectedMode !== undefined) {
       selectedMode = settings.selectedMode;
     }
+    if (settings.showDualLines !== undefined) {
+      showDualLines = settings.showDualLines;
+    }
   } else {
     settings = { ...defaults.fees };
     // default network package selection (prefer VML2, then VORK2 if available)
@@ -363,6 +381,7 @@ function saveSettings() {
   settings.selectedResolution = selectedResolution;
   settings.selectedDuration = selectedDuration;
   settings.selectedMode = selectedMode;
+  settings.showDualLines = showDualLines;
   localStorage.setItem('electricitySettings', JSON.stringify(settings));
 }
 
@@ -390,7 +409,10 @@ function renderSettings() {
     renewableSurcharge: 'Taastuvenergia tasu',
     securityOfSupplyFee: 'Varustuskindluse tasu',
     exciseTax: 'Elektriaktsiis',
-    vatPercent: 'Käibemaks'
+    balancingCapacityFee: 'Tasakaalustamise tasu',
+    vatPercent: 'Käibemaks',
+    purchaseMargin: 'Ostumarginaal',
+    salesMargin: 'Müügimarginaal'
   };
 
   const units = {
@@ -399,10 +421,13 @@ function renderSettings() {
     renewableSurcharge: 's/kWh',
     securityOfSupplyFee: 's/kWh',
     exciseTax: 's/kWh',
-    vatPercent: '%'
+    balancingCapacityFee: 's/kWh',
+    vatPercent: '%',
+    purchaseMargin: 's/kWh',
+    salesMargin: 's/kWh'
   };
 
-  const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'securityOfSupplyFee', 'exciseTax', 'balancingCapacityFee', 'vatPercent'];
+  const feeKeys = ['transferDay', 'transferNight', 'renewableSurcharge', 'securityOfSupplyFee', 'exciseTax', 'balancingCapacityFee', 'vatPercent', 'purchaseMargin', 'salesMargin'];
 
   feeKeys.forEach(key => {
     const item = document.createElement('div');
@@ -543,6 +568,8 @@ function renderSettings() {
       settings.exciseTax = null;
       settings.balancingCapacityFee = null;
       settings.vatPercent = null;
+      settings.purchaseMargin = null;
+      settings.salesMargin = null;
       return;
     }
 
@@ -565,6 +592,10 @@ function renderSettings() {
 
     // Keep VAT as configured in defaults.fees
     settings.vatPercent = defaults.fees?.vatPercent ?? settings.vatPercent;
+
+    // Margins from defaults.fees
+    settings.purchaseMargin = defaults.fees?.purchaseMargin ?? settings.purchaseMargin ?? 0;
+    settings.salesMargin = defaults.fees?.salesMargin ?? settings.salesMargin ?? 1;
   }
 }
 
@@ -641,10 +672,23 @@ function calculateDisplayPrices() {
   }
 }
 
+// Update chart legend visibility based on dual lines mode
+function updateChartLegend() {
+  if (!elements.chartLegend) return;
+  const spotItems = elements.chartLegend.querySelectorAll('.legend-spot-only');
+  const fullItems = elements.chartLegend.querySelectorAll('.legend-full-only');
+  const mainItem = elements.chartLegend.querySelector('.legend-item:first-child'); // "Hind" item
+
+  spotItems.forEach(item => item.style.display = showDualLines ? 'flex' : 'none');
+  fullItems.forEach(item => item.style.display = showDualLines ? 'flex' : 'none');
+  if (mainItem) mainItem.style.display = showDualLines ? 'none' : 'flex';
+}
+
 // Update all displays
 function updateAll() {
   updateCurrentPrice();
   updateStats();
+  updateChartLegend();
   updateChart();
   updateBestWindow();
   updateCostCalculator();
@@ -836,6 +880,58 @@ function getTotalPrice(spotPrice, date) {
   return total;
 }
 
+// Get spot price without VAT (raw spot price only)
+function getSpotPriceNoVat(spotPrice) {
+  return spotPrice;
+}
+
+// Get full price with all fees + margins + VAT (for dual line chart)
+function getFullPriceWithMargins(spotPrice, date) {
+  // Start with the base total price
+  const baseTotal = getTotalPrice(spotPrice, date);
+
+  // If no package selected, just return spot price (no margins applied)
+  if (!settings.networkPackage) return spotPrice;
+
+  // Add margins (before VAT is applied, so we need to recalculate)
+  const networkFee = getNetworkEnergyPrice(settings.networkPackage, date);
+  const national = defaults.network_tariffs?.national_fees_and_taxes_cents_per_kwh || {};
+  const renewable = national.renewable_energy_fee?.excl_vat ?? settings.renewableSurcharge ?? 0;
+
+  let excise = national.electricity_excise?.excl_vat ?? settings.exciseTax ?? 0;
+  const exciseChanges = national.electricity_excise?.changes || [];
+  for (const change of exciseChanges) {
+    if (change.effective_from) {
+      const eff = new Date(change.effective_from + 'T00:00:00Z');
+      if (date >= eff) excise = change.excl_vat;
+    }
+  }
+
+  let securityFee = 0;
+  const sec = national.security_of_supply_fee;
+  if (sec && sec.effective_from) {
+    const eff = new Date(sec.effective_from + 'T00:00:00Z');
+    if (date >= eff) securityFee = sec.excl_vat || 0;
+  }
+  if (!securityFee) securityFee = settings.securityOfSupplyFee ?? 0;
+
+  let balancingFee = 0;
+  const bal = national.balancing_capacity_fee;
+  if (bal && bal.effective_from) {
+    const eff = new Date(bal.effective_from + 'T00:00:00Z');
+    if (date >= eff) balancingFee = bal.excl_vat || 0;
+  }
+  if (!balancingFee) balancingFee = settings.balancingCapacityFee ?? 0;
+
+  // Add margins
+  const purchaseMargin = settings.purchaseMargin ?? defaults.fees?.purchaseMargin ?? 0;
+  const salesMargin = settings.salesMargin ?? defaults.fees?.salesMargin ?? 0;
+
+  const subtotal = spotPrice + networkFee + renewable + excise + securityFee + balancingFee + purchaseMargin + salesMargin;
+  const total = subtotal * (1 + (settings.vatPercent || defaults.fees?.vatPercent || 0) / 100);
+  return total;
+}
+
 // Get current price data (finds matching 15-min or hourly slot)
 function getCurrentPriceData() {
   const now = new Date();
@@ -926,7 +1022,15 @@ function updateChart() {
   if (futurePrices.length === 0) return;
 
   // Get price range for scaling (use displayPrice so chart reflects package selection)
-  const allPrices = futurePrices.map(p => (p.displayPrice !== undefined ? p.displayPrice : getDisplayedPriceForSlot(p.price, p.timestamp)));
+  // When dual lines are shown, include both spot (no VAT) and full (with margins + VAT) prices in range
+  let allPrices;
+  if (showDualLines && settings.networkPackage) {
+    const spotPrices = futurePrices.map(p => p.price);
+    const fullPrices = futurePrices.map(p => getFullPriceWithMargins(p.price, new Date(p.timestamp)));
+    allPrices = [...spotPrices, ...fullPrices];
+  } else {
+    allPrices = futurePrices.map(p => (p.displayPrice !== undefined ? p.displayPrice : getDisplayedPriceForSlot(p.price, p.timestamp)));
+  }
   const maxPrice = Math.max(...allPrices, 1);
   const minPrice = Math.min(...allPrices);
   const hasNegative = minPrice < 0;
@@ -1045,11 +1149,22 @@ function updateChart() {
   ctx.stroke();
 
   // Calculate points (use displayPrice for plotting so chart reflects package selection/VAT)
+  // When dual lines mode is active, also calculate spotY and fullY
   const points = futurePrices.map((p, i) => {
     const x = padding.left + (i / (futurePrices.length - 1)) * chartWidth;
     const dp = (p.displayPrice !== undefined) ? p.displayPrice : getDisplayedPriceForSlot(p.price, p.timestamp);
     const y = padding.top + ((paddedMax - dp) / priceRange) * chartHeight;
-    return { x, y, price: p.price, displayPrice: dp, timestamp: p.timestamp, isBest: bestIndices.has(i) };
+
+    // Dual lines mode: spot price (no VAT) and full price (with margins + VAT)
+    const spotPrice = p.price; // Raw spot price without VAT
+    const fullPrice = settings.networkPackage ? getFullPriceWithMargins(p.price, new Date(p.timestamp)) : p.price;
+    const spotY = padding.top + ((paddedMax - spotPrice) / priceRange) * chartHeight;
+    const fullY = padding.top + ((paddedMax - fullPrice) / priceRange) * chartHeight;
+
+    return {
+      x, y, price: p.price, displayPrice: dp, timestamp: p.timestamp, isBest: bestIndices.has(i),
+      spotPrice, fullPrice, spotY, fullY
+    };
   });
 
   // Draw best selection as green vertical bars/columns spanning full height (supports multiple non-consecutive groups)
@@ -1101,27 +1216,39 @@ function updateChart() {
   // Calculate step width for stepped line chart
   const stepWidth = points.length > 1 ? (points[1].x - points[0].x) : chartWidth;
 
-  // Draw main stepped line (blue)
-  ctx.beginPath();
-  ctx.strokeStyle = '#1e40af';
-  ctx.lineWidth = 2;
-  ctx.lineJoin = 'miter';
-  ctx.lineCap = 'butt';
+  // Helper function to draw a stepped line
+  function drawSteppedLine(pts, yGetter, color, lineWidth) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineJoin = 'miter';
+    ctx.lineCap = 'butt';
 
-  points.forEach((point, i) => {
-    if (i === 0) {
-      ctx.moveTo(point.x, point.y);
-    } else {
-      // Stepped line: horizontal first, then vertical
-      ctx.lineTo(point.x, points[i - 1].y);
-      ctx.lineTo(point.x, point.y);
-    }
-    // Extend last point horizontally
-    if (i === points.length - 1) {
-      ctx.lineTo(point.x + stepWidth, point.y);
-    }
-  });
-  ctx.stroke();
+    pts.forEach((point, i) => {
+      const y = yGetter(point);
+      const prevY = i > 0 ? yGetter(pts[i - 1]) : y;
+      if (i === 0) {
+        ctx.moveTo(point.x, y);
+      } else {
+        ctx.lineTo(point.x, prevY);
+        ctx.lineTo(point.x, y);
+      }
+      if (i === pts.length - 1) {
+        ctx.lineTo(point.x + stepWidth, y);
+      }
+    });
+    ctx.stroke();
+  }
+
+  // Draw lines based on mode
+  if (showDualLines && settings.networkPackage) {
+    // Dual lines mode: draw spot line (orange) and full line (purple)
+    drawSteppedLine(points, p => p.spotY, '#f59e0b', 2);  // Orange - spot price (no VAT)
+    drawSteppedLine(points, p => p.fullY, '#8b5cf6', 2);  // Purple - full price (with margins + VAT)
+  } else {
+    // Single line mode: draw main stepped line (blue)
+    drawSteppedLine(points, p => p.y, '#1e40af', 2);
+  }
 
   // Draw best window stepped line segment (green) on top
   if (bestIndices.size > 0) {
@@ -1131,24 +1258,27 @@ function updateChart() {
 
     let started = false;
     let prevPoint = null;
+    const yGetter = showDualLines && settings.networkPackage ? (p => p.fullY) : (p => p.y);
+
     points.forEach((point, i) => {
       if (point.isBest) {
+        const y = yGetter(point);
         if (!started) {
-          ctx.moveTo(point.x, point.y);
+          ctx.moveTo(point.x, y);
           started = true;
         } else {
           // Stepped line for green section
-          ctx.lineTo(point.x, prevPoint.y);
-          ctx.lineTo(point.x, point.y);
+          ctx.lineTo(point.x, yGetter(prevPoint));
+          ctx.lineTo(point.x, y);
         }
         prevPoint = point;
         // Extend last best point
         if (i === points.length - 1 || !points[i + 1]?.isBest) {
-          ctx.lineTo(point.x + stepWidth, point.y);
+          ctx.lineTo(point.x + stepWidth, y);
         }
       } else if (started && prevPoint) {
         // End of best window - extend to this point's x
-        ctx.lineTo(point.x, prevPoint.y);
+        ctx.lineTo(point.x, yGetter(prevPoint));
         started = false;
         prevPoint = null;
       }
@@ -1208,11 +1338,24 @@ function updateChart() {
         tooltip.className = 'chart-tooltip';
       }
 
-      tooltip.innerHTML = `
-        <strong>${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}</strong><br>
-        Börs: ${spotDisplay.toFixed(2)} s/kWh<br>
-        Kokku: ${total.toFixed(2)} s/kWh
-      `;
+      // Dual lines mode: show spot (no VAT), full (with margins + VAT), and difference
+      if (showDualLines && settings.networkPackage) {
+        const spotNoVat = point.spotPrice;
+        const fullWithMargins = point.fullPrice;
+        const diff = fullWithMargins - spotNoVat;
+        tooltip.innerHTML = `
+          <strong>${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}</strong><br>
+          Börs (ilma km): ${spotNoVat.toFixed(2)} s/kWh<br>
+          Kokku (+ marginaalid + km): ${fullWithMargins.toFixed(2)} s/kWh<br>
+          <span style="color: #fbbf24;">Vahe: +${diff.toFixed(2)} s/kWh</span>
+        `;
+      } else {
+        tooltip.innerHTML = `
+          <strong>${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}</strong><br>
+          Börs: ${spotDisplay.toFixed(2)} s/kWh<br>
+          Kokku: ${total.toFixed(2)} s/kWh
+        `;
+      }
 
       // Positioning
       const chartContainer = canvas.parentElement;
