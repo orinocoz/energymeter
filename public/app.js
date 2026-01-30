@@ -1040,9 +1040,10 @@ function updateChart() {
   const roundedMin = Math.floor(minPrice / stepSize) * stepSize;
   const roundedMax = Math.ceil(maxPrice / stepSize) * stepSize;
 
-  // Add one step padding
-  const paddedMin = roundedMin - stepSize;
-  const paddedMax = roundedMax + stepSize;
+  // Add padding - less for dual lines to maximize chart usage
+  const padSteps = (showDualLines && settings.networkPackage) ? 0 : 1;
+  const paddedMin = roundedMin - (stepSize * padSteps);
+  const paddedMax = roundedMax + (stepSize * padSteps);
   const priceRange = paddedMax - paddedMin;
 
   // Y-axis labels (every 2 units)
@@ -1357,19 +1358,41 @@ function updateChart() {
         `;
       }
 
-      // Positioning
+      // Positioning - ensure tooltip stays within visible chart area
       const chartContainer = canvas.parentElement;
+      const containerRect = chartContainer.getBoundingClientRect();
       const containerWidth = chartContainer.offsetWidth;
-      let left = leftPos;
-      let top = topPos - 10;
+      const containerHeight = chartContainer.offsetHeight;
 
-      if (left < 60) left = 60;
-      if (left > containerWidth - 60) left = containerWidth - 60;
-      if (top < 60) {
-        top = topPos + 40;
+      // Measure tooltip size (append temporarily if needed)
+      if (!chartContainer.contains(tooltip)) {
+        tooltip.style.visibility = 'hidden';
+        chartContainer.appendChild(tooltip);
+      }
+      const tooltipWidth = tooltip.offsetWidth;
+      const tooltipHeight = tooltip.offsetHeight;
+      tooltip.style.visibility = '';
+
+      let left = leftPos;
+      let top = topPos - tooltipHeight - 10;
+
+      // Horizontal bounds: keep tooltip fully visible
+      const minLeft = tooltipWidth / 2 + 5;
+      const maxLeft = containerWidth - tooltipWidth / 2 - 5;
+      if (left < minLeft) left = minLeft;
+      if (left > maxLeft) left = maxLeft;
+
+      // Vertical bounds: if too close to top, show below the point
+      if (top < 5) {
+        top = topPos + 20;
         tooltip.classList.add('tooltip-below');
       } else {
         tooltip.classList.remove('tooltip-below');
+      }
+
+      // If still overflows bottom, clamp it
+      if (top + tooltipHeight > containerHeight - 5) {
+        top = containerHeight - tooltipHeight - 5;
       }
 
       tooltip.style.left = `${left}px`;
