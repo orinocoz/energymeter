@@ -80,69 +80,8 @@ section {
 }
 
 /* Duration Buttons */
-.duration-section {
-  padding: 16px 20px;
-}
-
-.duration-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
-}
-
 .duration-left {
   flex: 1;
-}
-
-.duration-label {
-  font-size: 0.8rem;
-  color: var(--gray-600);
-  margin-bottom: 10px;
-}
-
-/* Resolution Toggle */
-.resolution-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.resolution-label {
-  font-size: 0.7rem;
-  color: var(--gray-500);
-}
-
-.resolution-buttons {
-  display: flex;
-  background: var(--gray-100);
-  border-radius: var(--radius);
-  padding: 3px;
-  gap: 2px;
-}
-
-.resolution-btn {
-  padding: 6px 12px;
-  border: none;
-  background: transparent;
-  border-radius: calc(var(--radius) - 2px);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--gray-500);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.resolution-btn:hover {
-  color: var(--gray-700);
-}
-
-.resolution-btn.active {
-  background: white;
-  color: var(--primary);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 /* Custom duration input */
@@ -261,21 +200,26 @@ section {
   gap: 16px;
 }
 
-/* Mode Toggle (same style as resolution) */
-.mode-wrapper {
+/* Toggles on the right side */
+.toggles-right {
+  display: flex;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.toggle-group {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
-  flex-shrink: 0;
 }
 
-.mode-wrapper .mode-label {
+.toggle-label {
   font-size: 0.7rem;
   color: var(--gray-500);
 }
 
-.mode-buttons {
+.toggle-buttons {
   display: flex;
   background: var(--gray-100);
   border-radius: var(--radius);
@@ -283,7 +227,7 @@ section {
   gap: 2px;
 }
 
-.mode-btn {
+.toggle-btn {
   padding: 6px 12px;
   border: none;
   background: transparent;
@@ -295,11 +239,11 @@ section {
   transition: all 0.2s;
 }
 
-.mode-btn:hover {
+.toggle-btn:hover {
   color: var(--gray-700);
 }
 
-.mode-btn.active {
+.toggle-btn.active {
   background: white;
   color: var(--primary);
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
@@ -910,24 +854,14 @@ body.chart-expanded .chart-wrapper {
     flex-direction: column;
   }
 
-  .duration-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .resolution-buttons {
-    align-self: flex-end;
-  }
-
   .mode-row {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
   }
 
-  .mode-wrapper {
-    align-items: flex-end;
+  .toggles-right {
+    justify-content: flex-end;
   }
 
   .chart-legend {

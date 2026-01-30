@@ -86,8 +86,8 @@ async function init() {
 
   // Resolution button listeners
   elements.resolutionButtons.addEventListener('click', (e) => {
-    if (e.target.classList.contains('resolution-btn')) {
-      document.querySelectorAll('.resolution-btn').forEach(btn => btn.classList.remove('active'));
+    if (e.target.classList.contains('toggle-btn') && e.target.dataset.resolution) {
+      elements.resolutionButtons.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
       e.target.classList.add('active');
       selectedResolution = parseInt(e.target.dataset.resolution);
 
@@ -250,8 +250,8 @@ async function init() {
   // Duration mode (consecutive vs cheapest) listeners
   if (elements.durationModeButtons) {
     elements.durationModeButtons.addEventListener('click', (e) => {
-      if (e.target.classList.contains('mode-btn')) {
-        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+      if (e.target.classList.contains('toggle-btn') && e.target.dataset.mode) {
+        elements.durationModeButtons.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
         e.target.classList.add('active');
         selectedMode = e.target.dataset.mode;
         // Save and update views
@@ -295,7 +295,7 @@ async function init() {
 
   // Restore UI state from saved settings
   // Resolution buttons
-  document.querySelectorAll('.resolution-btn').forEach(btn => {
+  elements.resolutionButtons.querySelectorAll('.toggle-btn').forEach(btn => {
     btn.classList.toggle('active', parseInt(btn.dataset.resolution) === selectedResolution);
   });
   // Duration input
@@ -305,7 +305,7 @@ async function init() {
   // Duration buttons (deactivate all since custom value is shown)
   document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
   // Mode buttons
-  document.querySelectorAll('.mode-btn').forEach(btn => {
+  elements.durationModeButtons.querySelectorAll('.toggle-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === selectedMode);
   });
 

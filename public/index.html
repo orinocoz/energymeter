@@ -19,19 +19,6 @@
         <div class="price-total" id="currentPriceTotal">Koos tasudega: -- s/kWh</div>
       </section>
 
-      <!-- Resolution Selector -->
-      <section class="duration-section">
-        <div class="duration-row">
-          <div class="resolution-wrapper">
-            <div class="resolution-label">Graafiku täpsus</div>
-            <div class="resolution-buttons" id="resolutionButtons">
-              <button class="resolution-btn" data-resolution="60">1h</button>
-              <button class="resolution-btn active" data-resolution="15">15m</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- Price Chart -->
       <section class="chart-section">
         <div class="chart-header">
@@ -59,7 +46,7 @@
         </div>
       </section>
 
-      <!-- Duration & Mode Selector -->
+      <!-- Duration, Mode & Resolution Selector -->
       <section class="mode-section">
         <div class="mode-row">
           <div class="duration-left">
@@ -81,11 +68,20 @@
               </div>
             </div>
           </div>
-          <div class="mode-wrapper">
-            <div class="mode-label">Režiim</div>
-            <div class="mode-buttons" id="durationModeButtons">
-              <button class="mode-btn active" data-mode="consecutive" title="Vali mitu tundi järjest">Järjest</button>
-              <button class="mode-btn" data-mode="cheapest" title="Vali mitu tundi (odavaimad, mitte järjest)">Odavaimad</button>
+          <div class="toggles-right">
+            <div class="toggle-group">
+              <div class="toggle-label">Režiim</div>
+              <div class="toggle-buttons" id="durationModeButtons">
+                <button class="toggle-btn active" data-mode="consecutive" title="Vali mitu tundi järjest">Järjest</button>
+                <button class="toggle-btn" data-mode="cheapest" title="Vali mitu tundi (odavaimad, mitte järjest)">Odavaimad</button>
+              </div>
+            </div>
+            <div class="toggle-group">
+              <div class="toggle-label">Täpsus</div>
+              <div class="toggle-buttons" id="resolutionButtons">
+                <button class="toggle-btn" data-resolution="60">1h</button>
+                <button class="toggle-btn active" data-resolution="15">15m</button>
+              </div>
             </div>
           </div>
         </div>
