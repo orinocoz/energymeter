@@ -145,47 +145,6 @@ section {
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
-/* Duration mode selector (Järjest / Odavaimad) */
-.duration-mode {
-  margin: 8px 0 12px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.mode-label {
-  font-size: 0.8rem;
-  color: var(--gray-700);
-  font-weight: 600;
-}
-
-.duration-mode-buttons {
-  display: inline-flex;
-  gap: 6px;
-}
-
-.duration-mode-btn {
-  padding: 6px 10px;
-  border: 2px solid var(--gray-200);
-  background: white;
-  border-radius: var(--radius);
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--gray-600);
-  cursor: pointer;
-}
-
-.duration-mode-btn.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: white;
-}
-
-.mode-note {
-  font-size: 0.8rem;
-  color: var(--gray-600);
-  margin-top: 6px;
-}
 /* Custom duration input */
 .duration-custom-wrapper { position: relative; display: inline-block; }
 
@@ -293,6 +252,57 @@ section {
 /* Mode section (below chart) */
 .mode-section {
   padding: 16px 20px;
+}
+
+.mode-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+/* Mode Toggle (same style as resolution) */
+.mode-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.mode-wrapper .mode-label {
+  font-size: 0.7rem;
+  color: var(--gray-500);
+}
+
+.mode-buttons {
+  display: flex;
+  background: var(--gray-100);
+  border-radius: var(--radius);
+  padding: 3px;
+  gap: 2px;
+}
+
+.mode-btn {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-btn:hover {
+  color: var(--gray-700);
+}
+
+.mode-btn.active {
+  background: white;
+  color: var(--primary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
 /* Small note for inputs */
@@ -908,6 +918,16 @@ body.chart-expanded .chart-wrapper {
 
   .resolution-buttons {
     align-self: flex-end;
+  }
+
+  .mode-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .mode-wrapper {
+    align-items: flex-end;
   }
 
   .chart-legend {

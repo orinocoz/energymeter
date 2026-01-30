@@ -19,29 +19,9 @@
         <div class="price-total" id="currentPriceTotal">Koos tasudega: -- s/kWh</div>
       </section>
 
-      <!-- Duration Selector -->
+      <!-- Resolution Selector -->
       <section class="duration-section">
         <div class="duration-row">
-          <div class="duration-left">
-            <div class="duration-buttons" id="durationButtons">
-              <button class="duration-btn active" data-hours="1">1h</button>
-              <button class="duration-btn" data-hours="2">2h</button>
-              <button class="duration-btn" data-hours="3">3h</button>
-              <button class="duration-btn" data-hours="4">4h</button>
-              <button class="duration-btn" data-hours="5">5h</button>
-              <button class="duration-btn" data-hours="6">6h</button>
-              <button class="duration-btn" data-hours="7">7h</button>
-              <button class="duration-btn" data-hours="8">8h</button>
-              <!-- Custom hours input (accepts hh:mm or decimal, with inline spinner buttons for 15-min steps) -->
-              <div class="duration-custom-wrapper">
-                <input id="durationCustom" class="duration-custom" type="text" inputmode="decimal" placeholder="Muu (hh:mm või 0.25 samm)" aria-label="Sisesta tunnid (hh:mm või 0.25 samm)">
-                <div class="duration-spinners" aria-hidden="true">
-                  <button id="durationSpinUp" class="duration-spinner up" type="button" title="Suurenda 15 min">▲</button>
-                  <button id="durationSpinDown" class="duration-spinner down" type="button" title="Vähenda 15 min">▼</button>
-                </div>
-              </div>
-            </div>
-          </div>
           <div class="resolution-wrapper">
             <div class="resolution-label">Graafiku täpsus</div>
             <div class="resolution-buttons" id="resolutionButtons">
@@ -79,15 +59,35 @@
         </div>
       </section>
 
-      <!-- Mode Selector -->
+      <!-- Duration & Mode Selector -->
       <section class="mode-section">
-        <div class="duration-mode">
-          <div class="mode-label">Režiim</div>
-          <div class="duration-mode-buttons" id="durationModeButtons">
-            <button class="duration-mode-btn active" data-mode="consecutive" title="Vali mitu tundi järjest">Järjest</button>
-            <button class="duration-mode-btn" data-mode="cheapest" title="Vali mitu tundi (odavaimad, mitte järjest)">Odavaimad</button>
+        <div class="mode-row">
+          <div class="duration-left">
+            <div class="duration-buttons" id="durationButtons">
+              <button class="duration-btn active" data-hours="1">1h</button>
+              <button class="duration-btn" data-hours="2">2h</button>
+              <button class="duration-btn" data-hours="3">3h</button>
+              <button class="duration-btn" data-hours="4">4h</button>
+              <button class="duration-btn" data-hours="5">5h</button>
+              <button class="duration-btn" data-hours="6">6h</button>
+              <button class="duration-btn" data-hours="7">7h</button>
+              <button class="duration-btn" data-hours="8">8h</button>
+              <div class="duration-custom-wrapper">
+                <input id="durationCustom" class="duration-custom" type="text" inputmode="decimal" placeholder="Muu" aria-label="Sisesta tunnid (hh:mm või 0.25 samm)">
+                <div class="duration-spinners" aria-hidden="true">
+                  <button id="durationSpinUp" class="duration-spinner up" type="button" title="Suurenda 15 min">▲</button>
+                  <button id="durationSpinDown" class="duration-spinner down" type="button" title="Vähenda 15 min">▼</button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="mode-note">Vali mitu tundi soovid elektrit tarbida — "Odavaimad" valib odavaimad tunnid, need ei pea olema järjest.</div>
+          <div class="mode-wrapper">
+            <div class="mode-label">Režiim</div>
+            <div class="mode-buttons" id="durationModeButtons">
+              <button class="mode-btn active" data-mode="consecutive" title="Vali mitu tundi järjest">Järjest</button>
+              <button class="mode-btn" data-mode="cheapest" title="Vali mitu tundi (odavaimad, mitte järjest)">Odavaimad</button>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -250,8 +250,8 @@ async function init() {
   // Duration mode (consecutive vs cheapest) listeners
   if (elements.durationModeButtons) {
     elements.durationModeButtons.addEventListener('click', (e) => {
-      if (e.target.classList.contains('duration-mode-btn')) {
-        document.querySelectorAll('.duration-mode-btn').forEach(btn => btn.classList.remove('active'));
+      if (e.target.classList.contains('mode-btn')) {
+        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
         e.target.classList.add('active');
         selectedMode = e.target.dataset.mode;
         // Save and update views
@@ -305,7 +305,7 @@ async function init() {
   // Duration buttons (deactivate all since custom value is shown)
   document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
   // Mode buttons
-  document.querySelectorAll('.duration-mode-btn').forEach(btn => {
+  document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === selectedMode);
   });
 
