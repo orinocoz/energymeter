@@ -1009,8 +1009,23 @@ function updateChart() {
   const minPrice = Math.min(...allPrices);
   const hasNegative = minPrice < 0;
 
-  // Round to nice 2-step intervals
-  const stepSize = 2;
+  // Calculate dynamic step size to get approximately 5-7 Y-axis labels
+  const range = maxPrice - minPrice;
+  const targetLabelCount = 6;
+  let rawStep = range / targetLabelCount;
+
+  // Round to nice values: 1, 2, 5, 10, 20, 50, etc.
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep || 1)));
+  const normalized = rawStep / magnitude;
+  let stepSize;
+  if (normalized <= 1) stepSize = 1 * magnitude;
+  else if (normalized <= 2) stepSize = 2 * magnitude;
+  else if (normalized <= 5) stepSize = 5 * magnitude;
+  else stepSize = 10 * magnitude;
+
+  // Ensure minimum step of 1
+  stepSize = Math.max(1, stepSize);
+
   let roundedMin = Math.floor(minPrice / stepSize) * stepSize;
   let roundedMax = Math.ceil(maxPrice / stepSize) * stepSize;
 
@@ -1020,16 +1035,15 @@ function updateChart() {
     if (roundedMax < 0) roundedMax = 0;
   }
 
-  // Add padding - less for dual lines to maximize chart usage
-  const padSteps = (showDualLines && settings.networkPackage) ? 0 : 1;
-  const paddedMin = roundedMin - (stepSize * padSteps);
-  const paddedMax = roundedMax + (stepSize * padSteps);
-  const priceRange = paddedMax - paddedMin;
+  // Minimal padding - just enough to not clip the line at edges
+  const paddedMin = roundedMin;
+  const paddedMax = roundedMax;
+  const priceRange = paddedMax - paddedMin || 1; // Avoid division by zero
 
-  // Y-axis labels (every 2 units)
+  // Y-axis labels (using dynamic step)
   const yLabels = [];
   for (let v = paddedMax; v >= paddedMin; v -= stepSize) {
-    yLabels.push(v);
+    yLabels.push(Math.round(v * 100) / 100); // Round to avoid floating point issues
   }
 
   yLabels.forEach(value => {
@@ -1044,9 +1058,14 @@ function updateChart() {
 
   elements.chartDate.textContent = `${firstDate.toLocaleDateString('et-EE', { weekday: 'short', day: 'numeric', month: 'short' })} – ${lastDate.toLocaleDateString('et-EE', { weekday: 'short', day: 'numeric', month: 'short' })}`;
 
-  // Create x-axis labels
+  // Create x-axis labels dynamically based on time range
+  // Calculate total hours in data range
+  const totalHours = (lastDate - firstDate) / (1000 * 60 * 60);
+
+  // Always show every hour
+  const hourInterval = 1;
+
   const shownLabels = new Set();
-  const labelInterval = selectedResolution === 15 ? 4 : 2; // Every hour for 15min, every 2 hours for 1h
 
   for (let i = 0; i < futurePrices.length; i++) {
     const priceDate = new Date(futurePrices[i].timestamp);
@@ -1055,11 +1074,10 @@ function updateChart() {
     const day = priceDate.getDate();
     const key = `${day}-${hour}`;
 
-    // For 15-min: show label every full hour (minute === 0)
-    // For 1h: show label every 2 hours (even hours)
-    const shouldShow = selectedResolution === 15
-      ? (minute === 0 && !shownLabels.has(key))
-      : (hour % 2 === 0 && !shownLabels.has(key));
+    // Show label at specified hour intervals (on the hour)
+    const isOnInterval = hour % hourInterval === 0;
+    const isOnHour = selectedResolution === 15 ? minute === 0 : true;
+    const shouldShow = isOnInterval && isOnHour && !shownLabels.has(key);
 
     if (shouldShow) {
       shownLabels.add(key);
@@ -1304,7 +1322,7 @@ function updateChart() {
     }
 
     // Create or update tooltip element
-    function showOrUpdateTooltipAt(point, leftPos, topPos) {
+    function showOrUpdateTooltipAt(point, leftPos, topPos, mouseEvent) {
       if (!point) return;
       const priceDate = new Date(point.timestamp);
       const hour = priceDate.getHours();
@@ -1320,16 +1338,30 @@ function updateChart() {
         tooltip.className = 'chart-tooltip';
       }
 
-      // Dual lines mode: show spot (no VAT), full (with margins + VAT), and difference
+      // Dual lines mode: show spot (no VAT), full (with margins + VAT), highlight closer line
       if (showDualLines && settings.networkPackage) {
         const spotNoVat = point.spotPrice;
         const fullWithMargins = point.fullPrice;
         const diff = fullWithMargins - spotNoVat;
+
+        // Determine which line cursor is closer to
+        let closerToSpot = false;
+        if (mouseEvent && point.spotY !== undefined && point.fullY !== undefined) {
+          const canvasRect = canvas.getBoundingClientRect();
+          const mouseY = mouseEvent.clientY - canvasRect.top;
+          const distToSpot = Math.abs(mouseY - point.spotY);
+          const distToFull = Math.abs(mouseY - point.fullY);
+          closerToSpot = distToSpot < distToFull;
+        }
+
+        const spotStyle = closerToSpot ? 'color: #f59e0b; font-weight: bold;' : 'color: #9ca3af;';
+        const fullStyle = !closerToSpot ? 'color: #8b5cf6; font-weight: bold;' : 'color: #9ca3af;';
+
         tooltip.innerHTML = `
           <strong>${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}</strong><br>
-          Börs (ilma km): ${spotNoVat.toFixed(2)} s/kWh<br>
-          Kokku (+ marginaalid + km): ${fullWithMargins.toFixed(2)} s/kWh<br>
-          <span style="color: #fbbf24;">Vahe: +${diff.toFixed(2)} s/kWh</span>
+          <span style="${spotStyle}">Börs: ${spotNoVat.toFixed(2)} s/kWh</span><br>
+          <span style="${fullStyle}">Kokku: ${fullWithMargins.toFixed(2)} s/kWh</span><br>
+          <span style="color: #fbbf24; font-size: 0.9em;">Vahe: +${diff.toFixed(2)} s/kWh</span>
         `;
       } else {
         tooltip.innerHTML = `
@@ -1339,15 +1371,9 @@ function updateChart() {
         `;
       }
 
-      // Positioning - use chart-section as container to avoid overflow:hidden clipping
+      // Positioning - use chart-section as container
       const chartSection = canvas.closest('.chart-section');
-      const chartArea = canvas.closest('.chart-area');
-      const chartAreaRect = chartArea.getBoundingClientRect();
       const sectionRect = chartSection.getBoundingClientRect();
-
-      // Calculate position relative to chart-section
-      const pointAbsX = chartAreaRect.left + leftPos - sectionRect.left;
-      const pointAbsY = chartAreaRect.top + topPos - sectionRect.top;
 
       // Measure tooltip size (append temporarily if needed)
       if (!chartSection.contains(tooltip)) {
@@ -1358,8 +1384,18 @@ function updateChart() {
       const tooltipHeight = tooltip.offsetHeight;
       tooltip.style.visibility = '';
 
-      let left = pointAbsX;
-      let top = pointAbsY - tooltipHeight - 10;
+      // Use mouse position directly if available
+      let left, top;
+      if (mouseEvent) {
+        left = mouseEvent.clientX - sectionRect.left;
+        top = mouseEvent.clientY - sectionRect.top - tooltipHeight - 10;
+      } else {
+        // Fallback for touch/click
+        const chartArea = canvas.closest('.chart-area');
+        const chartAreaRect = chartArea.getBoundingClientRect();
+        left = chartAreaRect.left + leftPos - sectionRect.left;
+        top = chartAreaRect.top + topPos - sectionRect.top - tooltipHeight - 10;
+      }
 
       // Horizontal bounds: keep tooltip fully visible within section
       const minLeft = tooltipWidth / 2 + 5;
@@ -1367,9 +1403,9 @@ function updateChart() {
       if (left < minLeft) left = minLeft;
       if (left > maxLeft) left = maxLeft;
 
-      // Vertical bounds: if too close to top, show below the point
+      // Vertical bounds: if too close to top, show below cursor
       if (top < 5) {
-        top = pointAbsY + 20;
+        top = (mouseEvent ? mouseEvent.clientY - sectionRect.top : top) + 15;
         tooltip.classList.add('tooltip-below');
       } else {
         tooltip.classList.remove('tooltip-below');
@@ -1391,7 +1427,8 @@ function updateChart() {
       const y = e.clientY - rect.top;
       const closest = findClosestPoint(x, y);
       if (closest) {
-        showOrUpdateTooltipAt(closest, closest.x, closest.y);
+        // Pass mouse event for direct cursor positioning
+        showOrUpdateTooltipAt(closest, closest.x, y, e);
       } else {
         const t = document.getElementById('chartTooltip');
         if (t) t.remove();

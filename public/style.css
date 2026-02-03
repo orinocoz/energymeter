@@ -430,11 +430,11 @@ body.chart-expanded .chart-wrapper {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 0 6px 24px 0;
-  font-size: 0.65rem;
+  padding: 0 6px 18px 0;
+  font-size: 0.7rem;
   color: var(--gray-800);
   text-align: right;
-  min-width: 40px;
+  min-width: 32px;
   font-weight: 500;
 }
 
@@ -482,9 +482,9 @@ body.chart-expanded .chart-wrapper {
 .chart-x-axis {
   display: flex;
   justify-content: space-between;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: var(--gray-800);
-  padding: 4px 10px 0 10px;
+  padding: 2px 5px 0 5px;
   font-weight: 500;
 }
 
@@ -502,7 +502,7 @@ body.chart-expanded .chart-wrapper {
   font-size: 0.75rem;
   white-space: nowrap;
   z-index: 1000;
-  transform: translate(-50%, -100%);
+  transform: translateX(-50%);
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   pointer-events: none;
 }
@@ -518,7 +518,7 @@ body.chart-expanded .chart-wrapper {
 }
 
 .chart-tooltip.tooltip-below {
-  transform: translate(-50%, 0);
+  transform: translateX(-50%);
 }
 
 .chart-tooltip.tooltip-below::after {
@@ -951,14 +951,14 @@ body.chart-expanded .chart-wrapper {
   }
 
   .chart-y-axis {
-    min-width: 30px;
-    font-size: 0.55rem;
-    padding: 0 4px 20px 0;
+    min-width: 28px;
+    font-size: 0.6rem;
+    padding: 0 4px 14px 0;
   }
 
   .chart-x-axis {
-    font-size: 0.5rem;
-    padding: 4px 3px 0 3px;
+    font-size: 0.6rem;
+    padding: 2px 3px 0 3px;
   }
 
   .info-grid {

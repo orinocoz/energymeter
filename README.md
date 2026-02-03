@@ -6,7 +6,7 @@ Estonian Nord Pool spot price calculator with network packages, cost estimation 
 
 - Real-time electricity spot prices from Elering (Nord Pool Estonia)
 - 15-minute and hourly price resolution
-- Hourly price chart with today and tomorrow's prices
+- Hourly price chart with dynamic Y-axis scaling and hourly X-axis labels
 - **Quick network package selector** in chart header for fast switching
 - **Dual price line chart**: "Lisatasud" button toggles between single line or two lines showing spot price (no VAT) vs full price (with margins + VAT)
 - Find cheapest hours: consecutive window or cheapest individual hours
@@ -89,6 +89,13 @@ Click the "Lisatasud" button on the chart to visualize two price lines:
 - **Purple line**: Full price including network fees, taxes, margins and VAT
 
 Hover over the chart to see the price difference between the two lines.
+
+### Chart Display
+
+The price chart features:
+- **Dynamic Y-axis**: Automatically scales to show only relevant price values with ~6 labels using nice round numbers (1, 2, 5, 10, 20, etc.)
+- **Hourly X-axis**: Shows hour marks every hour for easy time reference
+- **Compact layout**: Optimized spacing to maximize chart area
 
 ### Duration Selection
 
