@@ -1049,8 +1049,9 @@ function updateChart() {
     now.setMinutes(0, 0, 0);
   }
 
-  // Filter to future prices only (from current slot onwards)
-  // If `showPast` is true, include the entire `displayPrices` array so past slots are visible.
+  // Filter prices for chart display (from current slot onwards)
+  // If `showPast` is true, include the entire `displayPrices` array so past slots are visible on chart.
+  // Note: best/worst selection is always computed from future-only prices (see futureOnlyPrices below).
   const futurePrices = showPast ? displayPrices : displayPrices.filter(p => new Date(p.timestamp) >= now);
 
   if (futurePrices.length === 0) return;
@@ -1166,16 +1167,20 @@ function updateChart() {
   const chartHeight = height - padding.top - padding.bottom;
 
   // Determine best selection (consecutive or cheapest non-consecutive)
-  const best = getBestSelectionFromFuturePrices(futurePrices, selectedDuration);
+  // Always compute from future-only prices so past hours are never highlighted
+  const futureOnlyPrices = showPast ? futurePrices.filter(p => new Date(p.timestamp) >= now) : futurePrices;
+  const best = getBestSelectionFromFuturePrices(futureOnlyPrices, selectedDuration);
   const bestIndices = new Set();
   if (best) {
+    // When showPast is active, map indices from futureOnlyPrices back to futurePrices
+    const indexOffset = showPast ? futurePrices.length - futureOnlyPrices.length : 0;
     if (best.indices) {
-      best.indices.forEach(i => bestIndices.add(i));
+      best.indices.forEach(i => bestIndices.add(i + indexOffset));
     } else if (best.startIndex !== undefined) {
       // Backwards compatible: fill range for consecutive result
       const slotsToFill = selectedResolution === 15 ? selectedDuration * 4 : selectedDuration;
-      for (let i = best.startIndex; i < best.startIndex + slotsToFill && i < futurePrices.length; i++) {
-        bestIndices.add(i);
+      for (let i = best.startIndex; i < best.startIndex + slotsToFill && i < futureOnlyPrices.length; i++) {
+        bestIndices.add(i + indexOffset);
       }
     }
   }
