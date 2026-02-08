@@ -301,6 +301,12 @@ section {
   flex-shrink: 0;
 }
 
+/* Allow wrapping so compact groups don't overlap adjacent items */
+.toggles-right {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
 .toggle-group {
   display: flex;
   flex-direction: column;
@@ -343,6 +349,59 @@ section {
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
+/* Vertical compact grouping for stacked toggle buttons */
+.toggle-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.toggle-vertical .toggle-buttons {
+  width: 160px;
+  justify-content: center;
+}
+
+/* Compact wrapper for vertical toggle groups */
+.compact-toggle-block {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+
+/* Resolution (Period) toggle group - small styling */
+.toggle-group #resolutionButtons {
+  width: auto;
+}
+
+.toggle-group #resolutionButtons .toggle-btn {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+}
+
+/* Price direction specific active styling */
+.toggle-buttons#priceDirectionButtons .toggle-btn.active[data-price="expensive"] {
+  background: var(--danger);
+  color: white;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+/* Countdown red styling for expensive selection */
+.countdown-card.expensive {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.countdown-card.expensive .info-value {
+  color: var(--danger);
+}
+
+.info-sub {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--gray-600);
+}
+
 /* Small note for inputs */
 /* Removed special excl-VAT note for security fee — fee is included in VAT calculation like others */
 
@@ -364,6 +423,11 @@ section {
   display: flex;
   gap: 6px;
   align-items: center;
+}
+
+/* small spacing for the new chart header toggle */
+.chart-toggle {
+  padding: 6px 8px;
 }
 
 .package-select-label {
