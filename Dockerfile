@@ -21,6 +21,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --chown=node:node server ./server
 COPY --chown=node:node public/app.js ./public/app.js
 COPY --chown=node:node public/defaults.json ./public/defaults.json
+COPY --chown=node:node public/favicon.svg ./public/favicon.svg
 COPY --chown=node:node public/index.html ./public/index.html
 COPY --chown=node:node public/style.css ./public/style.css
 
