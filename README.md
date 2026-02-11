@@ -9,8 +9,12 @@ Estonian Nord Pool spot price calculator with network packages, cost estimation 
 - Hourly price chart with dynamic Y-axis scaling and hourly X-axis labels
 - **Quick network package selector** in chart header for fast switching
 - **Dual price line chart**: "Lisatasud" button toggles between single line or two lines showing spot price (no VAT) vs full price (with margins + VAT)
-- Find cheapest hours: consecutive window or cheapest individual hours
+- **Price direction**: find cheapest or most expensive hours (Odavaimad / Kallimad)
+- **Selection style**: consecutive window (Järjest) or individual hours (Hajali)
+- **History view**: "Ajalugu" button shows past prices on the chart alongside future prices
+- **Expandable chart**: fullscreen toggle button to maximize chart area
 - **Price calculator** (Hinnakalkulaator) with kWh input and savings display
+- **Countdown timer** showing time until the cheapest/most expensive period starts
 - Elektrilevi network packages (Võrk 1, 2, 4, 5 and Amper VML2)
 - Day/night/peak pricing with Estonian public holiday support
 - National fees with date-based effective dates (2026 taxes included)
@@ -24,6 +28,8 @@ docker compose up -d
 ```
 
 Open http://localhost:8080 in your browser.
+
+The Docker image uses a multi-stage build for minimal image size. HTTP responses are compressed with gzip via the `compression` middleware.
 
 ## Development
 
@@ -95,17 +101,44 @@ Hover over the chart to see the price difference between the two lines.
 The price chart features:
 - **Dynamic Y-axis**: Automatically scales to show only relevant price values with ~6 labels using nice round numbers (1, 2, 5, 10, 20, etc.)
 - **Hourly X-axis**: Shows hour marks every hour for easy time reference
+- **Expand button** (⤢): Toggle fullscreen chart mode for larger display
+- **Tooltip**: Hover (desktop) or tap (mobile) chart bars to see exact prices
 - **Compact layout**: Optimized spacing to maximize chart area
 
 ### Duration Selection
 
-Select the cheapest time period duration using:
+Select the time period duration using:
 - Quick buttons: 1h, 2h, 3h, 4h, 5h, 6h, 7h, 8h (all selected hours shown in green)
-- Custom input with +/- buttons for values up to 24h
+- Custom input with +/- buttons for values up to 24h (supports H:MM format, e.g. 1:30)
 
-Choose between:
+### Price Direction
+
+- **Odavaimad** (Cheapest): Find the cheapest hours
+- **Kallimad** (Most expensive): Find the most expensive hours (highlighted in red)
+
+### Selection Style
+
 - **Järjest** (Consecutive): Find the best consecutive time window
-- **Odavaimad** (Cheapest): Find the cheapest individual hours (not necessarily consecutive)
+- **Hajali** (Scattered): Find the best individual hours (not necessarily consecutive)
+
+### History View
+
+Click "Ajalugu" to include past prices on the chart. A red dotted line marks the current time. Best/worst selection is always computed from future prices only.
+
+## Architecture
+
+```
+├── server/
+│   ├── index.js          # Express server with API routes
+│   └── elering.js        # Elering API client with 5-min cache
+├── public/
+│   ├── index.html        # Single-page application
+│   ├── app.js            # Client-side logic (chart, calculator, settings)
+│   ├── style.css         # Styles
+│   └── defaults.json     # Network tariffs, fees, holidays
+├── Dockerfile            # Multi-stage production build
+└── docker-compose.yml    # Docker Compose configuration (port 8080→3000)
+```
 
 ## Data Source
 
