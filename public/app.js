@@ -122,17 +122,29 @@ async function init() {
     }
   });
 
+  // Helper: common actions after duration/selection/direction changes
+  function onDurationChanged() {
+    syncDurationButtons();
+    updateDurationCustomInput();
+    saveSettings();
+    updateChart();
+    updateBestWindow();
+    updateCostCalculator();
+  }
+
+  function onSelectionChanged() {
+    saveSettings();
+    updateChart();
+    updateBestWindow();
+    updateCostCalculator();
+  }
+
   // Duration buttons listeners
   if (elements.durationButtons) {
     elements.durationButtons.addEventListener('click', (e) => {
       if (e.target.classList.contains('duration-btn') && e.target.dataset.hours) {
         selectedDuration = parseInt(e.target.dataset.hours);
-        syncDurationButtons();
-        updateDurationCustomInput();
-        saveSettings();
-        updateChart();
-        updateBestWindow();
-        updateCostCalculator();
+        onDurationChanged();
       }
     });
   }
@@ -143,11 +155,7 @@ async function init() {
       const parsed = parseDurationInput(elements.durationCustomInput.value);
       if (parsed && !isNaN(parsed) && parsed >= 0.25 && parsed <= 24) {
         selectedDuration = parsed;
-        syncDurationButtons();
-        saveSettings();
-        updateChart();
-        updateBestWindow();
-        updateCostCalculator();
+        onDurationChanged();
       } else {
         // Reset to current value if invalid
         updateDurationCustomInput();
@@ -162,12 +170,7 @@ async function init() {
       const min = (selectedResolution === 15) ? 0.25 : 1;
       if (selectedDuration > min) {
         selectedDuration = Math.max(min, selectedDuration - step);
-        syncDurationButtons();
-        updateDurationCustomInput();
-        saveSettings();
-        updateChart();
-        updateBestWindow();
-        updateCostCalculator();
+        onDurationChanged();
       }
     });
   }
@@ -177,12 +180,7 @@ async function init() {
       const step = (selectedResolution === 15) ? 0.25 : 1;
       if (selectedDuration < 24) {
         selectedDuration = Math.min(24, selectedDuration + step);
-        syncDurationButtons();
-        updateDurationCustomInput();
-        saveSettings();
-        updateChart();
-        updateBestWindow();
-        updateCostCalculator();
+        onDurationChanged();
       }
     });
   }
@@ -214,10 +212,7 @@ async function init() {
         elements.selectionStyleButtons.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
         e.target.classList.add('active');
         selectionStyle = e.target.dataset.mode;
-        saveSettings();
-        updateChart();
-        updateBestWindow();
-        updateCostCalculator();
+        onSelectionChanged();
       }
     });
   }
@@ -229,10 +224,7 @@ async function init() {
         elements.priceDirectionButtons.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
         e.target.classList.add('active');
         priceDirection = e.target.dataset.price;
-        saveSettings();
-        updateChart();
-        updateBestWindow();
-        updateCostCalculator();
+        onSelectionChanged();
       }
     });
   }

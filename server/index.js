@@ -1,15 +1,23 @@
 const express = require('express');
+const compression = require('compression');
 const path = require('path');
 const { fetchPrices } = require('./elering');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Serve static files from public directory
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Enable gzip/brotli compression for all responses
+app.use(compression());
+
+// Serve static files from public directory with caching
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  maxAge: '1h',
+  etag: true
+}));
 
 // API endpoint for electricity prices
 app.get('/api/prices', async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300'); // 5 min cache
   try {
     const data = await fetchPrices();
     res.json(data);

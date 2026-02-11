@@ -46,7 +46,7 @@ async function fetchPrices() {
     }));
 
     // Sort by timestamp
-    prices.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    prices.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
     const result = {
       prices,

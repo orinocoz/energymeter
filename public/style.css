@@ -299,10 +299,6 @@ section {
   display: flex;
   gap: 16px;
   flex-shrink: 0;
-}
-
-/* Allow wrapping so compact groups don't overlap adjacent items */
-.toggles-right {
   flex-wrap: wrap;
   align-items: flex-start;
 }
@@ -423,11 +419,6 @@ section {
   display: flex;
   gap: 6px;
   align-items: center;
-}
-
-/* small spacing for the new chart header toggle */
-.chart-toggle {
-  padding: 6px 8px;
 }
 
 .package-select-label {
@@ -736,7 +727,6 @@ body.chart-expanded .chart-wrapper {
   background: transparent;
   border: none;
   color: var(--gray-500);
-  font-size: 0.8rem;
   font-size: 0.875rem;
 }
 
