@@ -1,16 +1,28 @@
-FROM node:20-alpine
+# Stage 1: Install dependencies
+FROM node:20-alpine AS deps
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (omit dev to keep image small)
-RUN npm install --omit=dev
+# Install dependencies with optimizations
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+
+# Stage 2: Runtime image
+FROM node:20-alpine AS runtime
+
+WORKDIR /app
+
+# Copy node_modules from deps stage
+COPY --from=deps /app/node_modules ./node_modules
 
 # Copy application files
 COPY --chown=node:node server ./server
-COPY --chown=node:node public ./public
+COPY --chown=node:node public/app.js ./public/app.js
+COPY --chown=node:node public/defaults.json ./public/defaults.json
+COPY --chown=node:node public/index.html ./public/index.html
+COPY --chown=node:node public/style.css ./public/style.css
 
 # Expose port
 EXPOSE 3000
